@@ -1,0 +1,30 @@
+# Virtual Environment
+venv/
+env/
+myenv/
+.venv/
+ENV/
+.env/
+.Python
+env.bak/
+venv.bak/
+advisor_env/
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Local environment files
+.env
+.env.local
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
