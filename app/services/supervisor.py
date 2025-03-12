@@ -23,8 +23,11 @@ def supervisor(state: State):
     Query: {user_message}
     
     Choose from: Chemical, Mechanical, Civil, ECE (Electrical and Computer Engineering)
-    If the query is general or doesn't specify a department, choose the most relevant one.
-    
+    If the query is general or doesn't specify a department or is about the faculty in general, Answer as "MSFEA Advisor".
+    If the query doesn't specify a department, but is clearly about a specific department, choose the most relevant one.
+    If the query is about the MSFEA program in general, answer as "MSFEA Advisor".
+    If the query is empty, answer as "MSFEA Advisor".
+
     Return only the department name without any explanation.
     """
     

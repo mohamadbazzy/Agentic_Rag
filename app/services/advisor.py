@@ -75,11 +75,23 @@ def process_query(user_input: str):
     
     # Process through the graph
     result = None
+    department = None
+    query_type = None
+    
     for event in advisor_graph.stream(initial_state):
-        # Only get the final assistant response
+        # Track the department and query type as they're determined
+        if "supervisor" in event:
+            department = event["supervisor"].get("department")
+            query_type = event["supervisor"].get("query_type")
+            
+        # Get the final assistant response
         if any(node in event.keys() for node in ["chemical_department", "mechanical_department", "civil_department", "cse_track", "ece_track", "cce_track"]):
             for node in ["chemical_department", "mechanical_department", "civil_department", "cse_track", "ece_track", "cce_track"]:
                 if node in event.keys():
                     result = event[node]["messages"].content
     
-    return result
+    return {
+        "response": result,
+        "department": department,
+        "query_type": query_type
+    }
