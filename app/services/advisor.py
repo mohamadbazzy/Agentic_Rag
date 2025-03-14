@@ -5,6 +5,7 @@ from app.services.departments.chemical import chemical_department
 from app.services.departments.mechanical import mechanical_department
 from app.services.departments.civil import civil_department
 from app.services.departments.ece import ece_department
+from app.services.departments.msfea_advisor import msfea_advisor
 from app.services.tracks.cse import cse_track
 from app.services.tracks.ece import ece_track
 from app.services.tracks.cce import cce_track
@@ -17,6 +18,7 @@ def create_advisor_graph():
 
     # Add nodes to the graph
     graph_builder.add_node("supervisor", supervisor)
+    graph_builder.add_node("msfea_advisor", msfea_advisor)
     graph_builder.add_node("chemical_department", chemical_department)
     graph_builder.add_node("mechanical_department", mechanical_department)
     graph_builder.add_node("civil_department", civil_department)
@@ -31,6 +33,7 @@ def create_advisor_graph():
         "supervisor",
         route_to_department,
         {
+            "msfea_advisor": "msfea_advisor",
             "chemical_department": "chemical_department",
             "mechanical_department": "mechanical_department",
             "civil_department": "civil_department",
@@ -49,6 +52,7 @@ def create_advisor_graph():
     )
 
     # Connect all final nodes to END
+    graph_builder.add_edge("msfea_advisor", END)
     graph_builder.add_edge("chemical_department", END)
     graph_builder.add_edge("mechanical_department", END)
     graph_builder.add_edge("civil_department", END)
@@ -79,16 +83,37 @@ def process_query(user_input: str):
     query_type = None
     
     for event in advisor_graph.stream(initial_state):
-        # Track the department and query type as they're determined
+        # Check if supervisor returned an invalid query response
         if "supervisor" in event:
-            department = event["supervisor"].get("department")
-            query_type = event["supervisor"].get("query_type")
+            supervisor_result = event["supervisor"]
+            
+            # If supervisor returned a direct response (invalid query), return it immediately
+            if "is_valid" in supervisor_result and supervisor_result["is_valid"] is False:
+                return {
+                    "response": supervisor_result["response"],
+                    "department": "MSFEA",  # Use MSFEA instead of "Invalid"
+                    "query_type": "General"  # Use General instead of "Invalid Query"
+                }
+                
+            # Otherwise get the department and query type
+            department = supervisor_result.get("department", "MSFEA")
+            query_type = supervisor_result.get("query_type", "General")
             
         # Get the final assistant response
-        if any(node in event.keys() for node in ["chemical_department", "mechanical_department", "civil_department", "cse_track", "ece_track", "cce_track"]):
-            for node in ["chemical_department", "mechanical_department", "civil_department", "cse_track", "ece_track", "cce_track"]:
+        if any(node in event.keys() for node in ["msfea_advisor", "chemical_department", "mechanical_department", "civil_department", "cse_track", "ece_track", "cce_track"]):
+            for node in ["msfea_advisor", "chemical_department", "mechanical_department", "civil_department", "cse_track", "ece_track", "cce_track"]:
                 if node in event.keys():
                     result = event[node]["messages"].content
+    
+    # Perform final clean-up to ensure consistent department names
+    if department and "invalid" in department.lower():
+        department = "MSFEA"
+    if query_type and "invalid" in query_type.lower():
+        query_type = "General"
+    
+    # For msfea_advisor node, ensure department is MSFEA
+    if any(node_name in ["msfea_advisor"] for node_name in event.keys()):
+        department = "MSFEA"
     
     return {
         "response": result,
