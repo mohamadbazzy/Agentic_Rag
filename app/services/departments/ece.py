@@ -17,7 +17,8 @@ def ece_department(state: State):
     
     # Determine which ECE track the query is about
     prompt = f"""
-    You are the academic advisor for the Electrical and Computer Engineering (ECE) department at AUB's MSFEA.
+    You are the academic advisor for the Electrical and Computer Engineering (ECE) department at AUB's MSFEA you can answer general questions about the department but if the question is about a specific track Return only the track abbreviation (CSE, CCE, or ECE) without any explanation..
+
 
     Determine which specific track within ECE this query is most directly related to:
     Query: {user_message}
@@ -36,23 +37,6 @@ def ece_department(state: State):
     6. When in doubt, choose "ECE" rather than a specific track.
     7. Never force a query into CSE or CCE unless it is clearly about their specialized topics.
 
-    CSE focus areas are:
-    - Computer architecture & hardware design
-    - Embedded systems & IoT devices
-    - VLSI design
-    - Computer hardware engineering
-    - Operating systems from a hardware perspective
-    - Hardware-software interface
-    
-    CCE focus areas are:
-    - Telecommunications & networking
-    - Wireless communications
-    - Network security
-    - Information theory
-    - Signal processing for communications
-    - Communication protocols & standards
-
-    Return only the track abbreviation (CSE, CCE, or ECE) without any explanation.
     """
     
     track_response = llm.invoke([{"role": "user", "content": prompt}])

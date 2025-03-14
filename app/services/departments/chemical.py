@@ -27,27 +27,10 @@ def chemical_department(state: State):
     - The department offers a BE in Chemical Engineering (accredited by ABET)
     - Master's programs include ME in Chemical Engineering and various specializations in energy-related fields
     - PhD in Chemical Engineering is available
-    - Focus areas include: process engineering, petrochemicals, biochemical engineering, materials, sustainable energy, and environmental applications
     
-    Use the following information to help answer their question:
+    Use the following information to answer the question:
     {context_str}
-    
-    If asked about courses, mention core courses like:
-    - Thermodynamics
-    - Transport Phenomena
-    - Reaction Engineering
-    - Process Design
-    - Separation Processes
-    - Materials Science
-    
-    For career questions, focus on industries like:
-    - Petroleum and petrochemicals
-    - Pharmaceuticals
-    - Food processing
-    - Energy production
-    - Environmental remediation
-    - Materials development
-    
+    Important: Only answer from the information provided. If you don't know the answer, say so.
     If you don't have specific information requested, provide general guidance about Chemical Engineering at AUB while acknowledging the limits of your knowledge.
     
     Respond in a professional, helpful manner appropriate for an academic advisor at AUB.
