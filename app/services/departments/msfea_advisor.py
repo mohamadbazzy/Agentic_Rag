@@ -5,7 +5,7 @@ from app.models.schemas import State
 # Initialize OpenAI LLM
 llm = ChatOpenAI(
     api_key=OPENAI_API_KEY,
-    model_name="gpt-3.5-turbo"
+    model_name="gpt-4o"
 )
 
 def msfea_advisor(state: State):

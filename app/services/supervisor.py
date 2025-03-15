@@ -6,7 +6,7 @@ from app.db.vector_store import vectorstore
 # Initialize OpenAI LLM
 llm = ChatOpenAI(
     api_key=OPENAI_API_KEY,
-    model_name="gpt-3.5-turbo"
+    model_name="gpt-4o"
 )
 
 def handle_invalid_query(reason):
@@ -106,26 +106,8 @@ def supervisor(state: State):
     department_response = llm.invoke([{"role": "user", "content": department_prompt}])
     department = department_response.content.strip()
     
-    # STEP 3: Determine the general type of query
-    query_type_prompt = f"""
-    As the MSFEA academic advisor at AUB, determine what specific type of information the student is looking for:
-    Query: {user_message}
-
-    Choose EXACTLY ONE of the following categories:
-    - Admissions: Questions about application process, requirements, deadlines, transfer credits, entrance exams, or ABET equivalency
-    - Curriculum: Questions about specific courses, course requirements, prerequisites, FYP (Final Year Project), credit hours, or course offerings
-    - Career: Questions about job opportunities, internships, co-op programs, career paths, industry connections, or post-graduate options
-    - Faculty: Questions about professors, their research areas, office hours, advisor assignments, or academic departments
-    - General: Questions about general information, comparisons between programs, facilities, student life, or overview of engineering disciplines
-
-    For queries covering multiple categories, choose the MOST RELEVANT one.
-    If the query is vague, unclear, or not directly related to these categories, choose "General".
-
-    Return only the query type without any explanation.
-    """
-    
-    query_type_response = llm.invoke([{"role": "user", "content": query_type_prompt}])
-    query_type = query_type_response.content.strip()
+    # STEP 3: Use a default query type instead of LLM determination
+    query_type = "General"  # Default value without making an API call
     
     # STEP 4: Retrieve context based on department and query type
     docs = vectorstore.similarity_search(f"{department} department {query_type} {user_message}", k=3)
