@@ -100,7 +100,21 @@ def msfea_advisor(state: State):
     
     Use the following information to help answer their question:
     {context_str}
-    
+
+    If the question is to calculate the GPA of a student, you should use the following formula:
+    A+ : 4.3
+    A : 4
+    A- : 3.7
+    B+ : 3.3
+    B : 3
+    B- : 2.7
+    C+ : 2.3
+    C : 2
+    C- : 1.7
+    D+ : 1.3
+    D : 1
+    F : 0
+    Only output the GPA as a number, Saying your GPA IS ... and as a letter grade it is...
     Important: Only answer from the information provided. If you don't know the answer, say so.
     
     Respond in a professional, helpful manner appropriate for an academic advisor at AUB.

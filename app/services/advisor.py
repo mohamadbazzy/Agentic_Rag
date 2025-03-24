@@ -6,6 +6,7 @@ from app.services.departments.mechanical import mechanical_department
 from app.services.departments.civil import civil_department
 from app.services.departments.ece import ece_department
 from app.services.departments.msfea_advisor import msfea_advisor
+from app.services.departments.Industrial import industrial_department
 from app.services.tracks.cse import cse_track
 from app.services.tracks.ece import ece_track
 from app.services.tracks.cce import cce_track
@@ -75,6 +76,7 @@ def build_graph():
     graph.add_node("mechanical", mechanical_department)
     graph.add_node("civil", civil_department)
     graph.add_node("ece", ece_department)
+    graph.add_node("industrial", industrial_department)
     graph.add_node("msfea_advisor", msfea_advisor)
     graph.add_node("cse", cse_track)
     graph.add_node("cce", cce_track)
@@ -89,6 +91,7 @@ def build_graph():
             "Chemical Engineering and Advanced Energy (CHEE)": "chemical",
             "Mechanical Engineering (MECH)": "mechanical",
             "Civil and Environmental Engineering (CEE)": "civil",
+            "Industrial Engineering and Management (ENMG)": "industrial",
             "Electrical and Computer Engineering (ECE)": "ece",
             "MSFEA Advisor": "msfea_advisor",
             "Invalid": END
@@ -110,6 +113,7 @@ def build_graph():
     graph.add_edge("chemical", END)
     graph.add_edge("mechanical", END)
     graph.add_edge("civil", END)
+    graph.add_edge("industrial", END)
     graph.add_edge("msfea_advisor", END)
     graph.add_edge("cse", END)
     graph.add_edge("cce", END)

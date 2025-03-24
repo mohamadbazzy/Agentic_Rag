@@ -17,6 +17,8 @@ def route_to_department(state: State):
         return "Mechanical Engineering (MECH)"
     elif "civil" in department:
         return "Civil and Environmental Engineering (CEE)"
+    elif any(term in department for term in ["industrial", "enmg", "management"]):
+        return "Industrial Engineering and Management (ENMG)"
     elif any(term in department for term in ["ece", "electrical", "computer", "electronic"]):
         return "Electrical and Computer Engineering (ECE)"
     else:
