@@ -10,113 +10,109 @@ from app.services.tracks.cse import cse_track
 from app.services.tracks.ece import ece_track
 from app.services.tracks.cce import cce_track
 from app.services.routing import route_to_department, route_to_ece_track
+from langchain_openai import ChatOpenAI
+from app.core.config import OPENAI_API_KEY
+from app.db.vector_store import vectorstore, get_agent_vectorstore
+from app.models.schemas import QueryResponse
+import logging
 
-def create_advisor_graph():
-    """Create the LangGraph for the academic advisor system"""
-    # Build the graph
-    graph_builder = StateGraph(State)
+# Set up logging
+logger = logging.getLogger(__name__)
 
-    # Add nodes to the graph
-    graph_builder.add_node("supervisor", supervisor)
-    graph_builder.add_node("msfea_advisor", msfea_advisor)
-    graph_builder.add_node("chemical_department", chemical_department)
-    graph_builder.add_node("mechanical_department", mechanical_department)
-    graph_builder.add_node("civil_department", civil_department)
-    graph_builder.add_node("ece_department", ece_department)
-    graph_builder.add_node("cse_track", cse_track)
-    graph_builder.add_node("ece_track", ece_track)
-    graph_builder.add_node("cce_track", cce_track)
+# Initialize OpenAI LLM
+llm = ChatOpenAI(
+    api_key=OPENAI_API_KEY,
+    model_name="gpt-4o"
+)
 
-    # Add edges to the graph
-    graph_builder.add_edge(START, "supervisor")
-    graph_builder.add_conditional_edges(
+# Get a dedicated vector store for advisor
+advisor_vectorstore = get_agent_vectorstore("advisor")
+
+def process_query(query_text: str) -> QueryResponse:
+    """
+    Process a student query and generate a response
+    """
+    try:
+        # Create the chat graph
+        graph = build_graph()
+        
+        # Create the initial state
+        state = {
+            "messages": [{"role": "user", "content": query_text}],
+            "is_valid": True,
+        }
+        
+        # Execute the graph
+        result = graph.invoke(state)
+        
+        # Extract the response from the final state
+        if "messages" in result and len(result["messages"]) > 0:
+            response_content = result["messages"][-1].content
+        else:
+            response_content = "I'm sorry, I couldn't process your request."
+            
+        # Get context if available
+        context = result.get("context", [])
+        
+        return QueryResponse(
+            response=response_content,
+            context=context
+        )
+    except Exception as e:
+        logger.error(f"Error processing query: {str(e)}")
+        raise
+
+def build_graph():
+    """
+    Build the agent workflow graph
+    """
+    # Create a new state graph
+    graph = StateGraph(State)
+    
+    # Add nodes
+    graph.add_node("supervisor", supervisor)
+    graph.add_node("chemical", chemical_department)
+    graph.add_node("mechanical", mechanical_department)
+    graph.add_node("civil", civil_department)
+    graph.add_node("ece", ece_department)
+    graph.add_node("msfea_advisor", msfea_advisor)
+    graph.add_node("cse", cse_track)
+    graph.add_node("cce", cce_track)
+    graph.add_node("ece_track", ece_track)
+    
+    # Define edges
+    graph.add_edge(START, "supervisor")
+    graph.add_conditional_edges(
         "supervisor",
         route_to_department,
         {
-            "msfea_advisor": "msfea_advisor",
-            "chemical_department": "chemical_department",
-            "mechanical_department": "mechanical_department",
-            "civil_department": "civil_department",
-            "ece_department": "ece_department"
+            "Chemical Engineering and Advanced Energy (CHEE)": "chemical",
+            "Mechanical Engineering (MECH)": "mechanical",
+            "Civil and Environmental Engineering (CEE)": "civil",
+            "Electrical and Computer Engineering (ECE)": "ece",
+            "MSFEA Advisor": "msfea_advisor",
+            "Invalid": END
         }
     )
-
-    graph_builder.add_conditional_edges(
-        "ece_department",
+    
+    # Add conditional edges for ECE routes
+    graph.add_conditional_edges(
+        "ece",
         route_to_ece_track,
         {
-            "cse_track": "cse_track",
-            "ece_track": "ece_track",
-            "cce_track": "cce_track"
+            "CSE": "cse",
+            "CCE": "cce",
+            "ECE": "ece_track"
         }
     )
-
-    # Connect all final nodes to END
-    graph_builder.add_edge("msfea_advisor", END)
-    graph_builder.add_edge("chemical_department", END)
-    graph_builder.add_edge("mechanical_department", END)
-    graph_builder.add_edge("civil_department", END)
-    graph_builder.add_edge("cse_track", END)
-    graph_builder.add_edge("ece_track", END)
-    graph_builder.add_edge("cce_track", END)
-
-    # Compile the graph
-    return graph_builder.compile()
-
-# Create the advisor graph
-advisor_graph = create_advisor_graph()
-
-def process_query(user_input: str):
-    """Process a user query through the advisor graph"""
-    # Initialize state with empty values
-    initial_state = {
-        "messages": [{"role": "user", "content": user_input}],
-        "context": [],
-        "department": None,
-        "track": None,
-        "query_type": None
-    }
     
-    # Process through the graph
-    result = None
-    department = None
-    query_type = None
+    # Connect all department nodes to END
+    graph.add_edge("chemical", END)
+    graph.add_edge("mechanical", END)
+    graph.add_edge("civil", END)
+    graph.add_edge("msfea_advisor", END)
+    graph.add_edge("cse", END)
+    graph.add_edge("cce", END)
+    graph.add_edge("ece_track", END)
     
-    for event in advisor_graph.stream(initial_state):
-        # Check if supervisor returned an invalid query response
-        if "supervisor" in event:
-            supervisor_result = event["supervisor"]
-            
-            # If supervisor returned a direct response (invalid query), return it immediately
-            if "is_valid" in supervisor_result and supervisor_result["is_valid"] is False:
-                return {
-                    "response": supervisor_result["response"],
-                    "department": "MSFEA",  # Use MSFEA instead of "Invalid"
-                    "query_type": "General"  # Use General instead of "Invalid Query"
-                }
-                
-            # Otherwise get the department and query type
-            department = supervisor_result.get("department", "MSFEA")
-            query_type = supervisor_result.get("query_type", "General")
-            
-        # Get the final assistant response
-        if any(node in event.keys() for node in ["msfea_advisor", "chemical_department", "mechanical_department", "civil_department", "cse_track", "ece_track", "cce_track"]):
-            for node in ["msfea_advisor", "chemical_department", "mechanical_department", "civil_department", "cse_track", "ece_track", "cce_track"]:
-                if node in event.keys():
-                    result = event[node]["messages"].content
-    
-    # Perform final clean-up to ensure consistent department names
-    if department and "invalid" in department.lower():
-        department = "MSFEA"
-    if query_type and "invalid" in query_type.lower():
-        query_type = "General"
-    
-    # For msfea_advisor node, ensure department is MSFEA
-    if any(node_name in ["msfea_advisor"] for node_name in event.keys()):
-        department = "MSFEA"
-    
-    return {
-        "response": result,
-        "department": department,
-        "query_type": query_type
-    }
+    return graph.compile()

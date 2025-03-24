@@ -1,6 +1,11 @@
 from langchain_openai import ChatOpenAI
 from app.core.config import OPENAI_API_KEY
 from app.models.schemas import State
+from app.db.vector_store import get_agent_vectorstore
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Initialize OpenAI LLM
 llm = ChatOpenAI(
@@ -8,11 +13,25 @@ llm = ChatOpenAI(
     model_name="gpt-3.5-turbo"
 )
 
+# Get a dedicated vector store for mechanical department
+mechanical_vectorstore = get_agent_vectorstore("mechanical")
+
 def mechanical_department(state: State):
     """Handle queries about the Mechanical Engineering department"""
     user_message = state["messages"][-1].content
     query_type = state.get("query_type", "General")
     context = state.get("context", [])
+    
+    # If we need additional context from mechanical's database, search with mechanical's vector store
+    if not context:
+        search_query = f"Mechanical Engineering {query_type} {user_message}"
+        mech_docs = mechanical_vectorstore.similarity_search(
+            search_query, 
+            k=3,
+            namespace="mechanical_namespace"  # Explicitly specify namespace
+        )
+        context = [{"content": doc.page_content, "source": doc.metadata.get("source", "unknown")} 
+                for doc in mech_docs]
     
     context_str = "\n".join([item["content"] for item in context])
     
@@ -34,7 +53,7 @@ def mechanical_department(state: State):
     
 
     If you don't have specific information requested, provide general guidance about Mechanical Engineering at AUB while acknowledging the limits of your knowledge.
-    Important:answer only from the context provided and don't make up any information
+    Important: answer only from the context provided and don't make up any information
     Respond in a professional, helpful manner appropriate for an academic advisor at AUB.
     """
     
