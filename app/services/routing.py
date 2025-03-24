@@ -6,22 +6,22 @@ def route_to_department(state: State):
     
     # Handle invalid queries (should never reach here as they're handled directly in process_query)
     if "invalid" in department.lower():
-        return "msfea_advisor"  # Fallback to MSFEA advisor for invalid queries
+        return "Invalid"
     
     # Route to the appropriate department
     if any(term in department.lower() for term in ["msfea advisor", "msfea", "general", "faculty", "advisor"]):
-        return "msfea_advisor"
+        return "MSFEA Advisor"
     elif "chemical" in department:
-        return "chemical_department"
+        return "Chemical Engineering and Advanced Energy (CHEE)"
     elif "mechanical" in department:
-        return "mechanical_department"
+        return "Mechanical Engineering (MECH)"
     elif "civil" in department:
-        return "civil_department"
+        return "Civil and Environmental Engineering (CEE)"
     elif any(term in department for term in ["ece", "electrical", "computer", "electronic"]):
-        return "ece_department"
+        return "Electrical and Computer Engineering (ECE)"
     else:
         # Default to MSFEA Advisor if unclear
-        return "msfea_advisor"
+        return "MSFEA Advisor"
 
 def route_to_ece_track(state: State):
     """Route to the appropriate ECE track based on the determined track"""

@@ -1,7 +1,8 @@
 from langchain_openai import ChatOpenAI
 from app.core.config import OPENAI_API_KEY
 from app.models.schemas import State
-from app.db.vector_store import get_agent_vectorstore
+from app.db.vector_store import vectorstore
+from .agent_index_wrapper import get_restricted_index
 import logging
 
 # Set up logging
@@ -13,8 +14,26 @@ llm = ChatOpenAI(
     model_name="gpt-4o"
 )
 
-# Get a dedicated vector store for supervisor
-supervisor_vectorstore = get_agent_vectorstore("supervisor")
+# Get the restricted index for supervisor
+# Wrap the vector store's underlying Pinecone index
+original_index = vectorstore._index
+
+# The supervisor needs access to all department namespaces to properly route queries
+allowed_namespaces = ["supervisor_namespace", "mechanical_namespace", "chemical_namespace", 
+                      "civil_namespace", "ece_namespace", "cse_namespace", "cce_namespace", 
+                      "msfea_advisor_namespace"]
+
+# Check if get_restricted_index accepts a list of namespaces
+try:
+    restricted_index = get_restricted_index(original_index, "supervisor", allowed_namespaces)
+except TypeError:
+    # If it doesn't accept a list, use the original index (unrestricted)
+    logger.info("Supervisor needs access to all namespaces for proper routing - using unrestricted index")
+    restricted_index = original_index
+
+# Replace the vector store's index with the restricted one
+vectorstore._index = restricted_index
+logger.info("Created index for supervisor with access to all necessary department namespaces")
 
 def handle_invalid_query(reason):
     """Generate a response for invalid queries"""
@@ -53,6 +72,22 @@ def supervisor(state: State):
     Respond with ONLY one of:
     - VALID: [brief reason] - if the query could possibly be addressed by an academic advisor
     - INVALID: [brief reason] - ONLY if the query is clearly inappropriate or completely unrelated to engineering education
+
+    Examples of valid queries (ACCEPT these):
+    - Questions about any engineering department, even if vague
+    - General questions about MSFEA or engineering at AUB
+    - Questions about campus facilities related to engineering
+    - Questions comparing different programs or departments
+    - Simple administrative questions about MSFEA
+    - Questions about professors or research areas
+    - Vague questions that still relate to engineering education
+    - General questions about master's programs at MSFEA
+
+    Examples of invalid queries (REJECT these):
+    - Requests to write essays or complete assignments
+    - Offensive or inappropriate content
+    - Questions about completely unrelated fields (e.g., medical advice)
+    - Spam or nonsensical text (e.g., random keyboard mashing)
     """
     
     validation_response = llm.invoke([{"role": "user", "content": validation_prompt}])
@@ -79,6 +114,19 @@ def supervisor(state: State):
     - Industrial Engineering and Management (ENMG): For queries specifically about industrial engineering, engineering management, or operations
     - Mechanical Engineering (MECH): For queries specifically about mechanical engineering, thermal systems, materials, or manufacturing
     - MSFEA Advisor: For general engineering queries, faculty-wide policies, interdisciplinary programs, or when no specific department applies
+
+    IMPORTANT GUIDELINES FOR ROUTING:
+    1. If the query is general or doesn't specify a department, choose "MSFEA Advisor".
+    2. If the query mentions multiple departments or is about comparing departments, choose "MSFEA Advisor".
+    3. If the query is about general master's programs or overall MSFEA offerings, choose "MSFEA Advisor".
+    4. If the query is vague, unclear, or could apply to multiple departments, choose "MSFEA Advisor".
+    5. If the query is about non-academic matters (housing, tuition, campus life, etc.), choose "MSFEA Advisor".
+    6. For administrative questions about the faculty as a whole, choose "MSFEA Advisor".
+    7. DO NOT force a query into a specific department unless it explicitly mentions that department or is clearly specific to that field.
+    8. When in doubt, choose "MSFEA Advisor" rather than a specific department.
+    9. ONLY choose a specific department when the query explicitly mentions that department or is unambiguously related to its distinct field.
+
+    Return only the department name without any explanation.
     """
     
     department_response = llm.invoke([{"role": "user", "content": department_prompt}])
@@ -87,12 +135,9 @@ def supervisor(state: State):
     # STEP 3: Use a default query type instead of LLM determination
     query_type = "General"  # Default value without making an API call
     
-    # STEP 4: Retrieve context based on department and query type using the supervisor's vector store
-    docs = supervisor_vectorstore.similarity_search(
-        f"{department} department {query_type} {user_message}", 
-        k=3,
-        namespace="supervisor_namespace"  # Explicitly specify namespace
-    )
+    # STEP 4: Retrieve context based on department and query type
+    # Using the restricted index for similarity search
+    docs = vectorstore.similarity_search(f"{department} department {query_type} {user_message}", k=3)
     context = [{"content": doc.page_content, "source": doc.metadata.get("source", "unknown")} 
                for doc in docs]
     

@@ -1,6 +1,11 @@
 from langchain_openai import ChatOpenAI
 from app.core.config import OPENAI_API_KEY
 from app.models.schemas import State
+from app.db.vector_store import get_agent_vectorstore
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Initialize OpenAI LLM
 llm = ChatOpenAI(
@@ -8,12 +13,57 @@ llm = ChatOpenAI(
     model_name="gpt-3.5-turbo"
 )
 
+# Get a dedicated vector store for ECE department
+ece_vectorstore = get_agent_vectorstore("ece")
+
 def ece_department(state: State):
     """
     Handle queries about the ECE department and determine which track within ECE
     the query is about
     """
     user_message = state["messages"][-1].content
+    query_type = state.get("query_type", "General")
+    
+    # Always retrieve from ECE's namespace, regardless of passed context
+    search_query = f"Electrical and Computer Engineering: {query_type} - {user_message}"
+    
+    try:
+        # Debug output to track the search
+        logger.info(f"Searching ece_namespace with query: {search_query}")
+        
+        # Ensure we're using the correct vectorstore and namespace
+        ece_docs = ece_vectorstore.similarity_search(
+            search_query, 
+            k=3,
+            namespace="ece_namespace",  # Explicitly specify namespace
+            filter={"department": "ece"}  # Add a filter for ECE department
+        )
+        
+        logger.info(f"Found {len(ece_docs)} documents in ece_namespace")
+        
+        if ece_docs:
+            context = [{"content": doc.page_content, "source": doc.metadata.get("source", "unknown")} 
+                    for doc in ece_docs]
+        else:
+            # Fallback to hardcoded information if no docs found
+            logger.warning("No documents found in ece_namespace, using fallback content")
+            context = [{
+                "content": """
+                The Electrical and Computer Engineering (ECE) department at AUB offers ABET-accredited BE degrees,
+                as well as ME and PhD programs. The department has three main tracks: Computer Science and Engineering (CSE),
+                Computer and Communications Engineering (CCE), and general Electrical and Computer Engineering (ECE).
+                """,
+                "source": "fallback_info"
+            }]
+    except Exception as e:
+        logger.error(f"Error retrieving documents from ece_namespace: {str(e)}")
+        # Use fallback content in case of error
+        context = [{
+            "content": "Basic information about Electrical and Computer Engineering at AUB's MSFEA faculty.",
+            "source": "error_fallback"
+        }]
+    
+    context_str = "\n".join([item["content"] for item in context])
     
     # Determine which ECE track the query is about
     prompt = f"""

@@ -20,18 +20,47 @@ def mechanical_department(state: State):
     """Handle queries about the Mechanical Engineering department"""
     user_message = state["messages"][-1].content
     query_type = state.get("query_type", "General")
-    context = state.get("context", [])
     
-    # If we need additional context from mechanical's database, search with mechanical's vector store
-    if not context:
-        search_query = f"Mechanical Engineering {query_type} {user_message}"
+    # Always retrieve from mechanical's namespace, regardless of passed context
+    # More specific search query to target mechanical engineering content
+    search_query = f"Mechanical Engineering: {query_type} - {user_message}"
+    
+    try:
+        # Debug output to track the search
+        logger.info(f"Searching mechanical_namespace with query: {search_query}")
+        
+        # Ensure we're using the correct vectorstore and namespace
         mech_docs = mechanical_vectorstore.similarity_search(
             search_query, 
             k=3,
-            namespace="mechanical_namespace"  # Explicitly specify namespace
+            namespace="mechanical_namespace",  # Explicitly specify namespace
+            filter={"department": "mechanical"}  # Add a filter for mechanical department
         )
-        context = [{"content": doc.page_content, "source": doc.metadata.get("source", "unknown")} 
-                for doc in mech_docs]
+        
+        logger.info(f"Found {len(mech_docs)} documents in mechanical_namespace")
+        
+        if mech_docs:
+            context = [{"content": doc.page_content, "source": doc.metadata.get("source", "unknown")} 
+                    for doc in mech_docs]
+        else:
+            # Fallback to hardcoded information if no docs found
+            logger.warning("No documents found in mechanical_namespace, using fallback content")
+            context = [{
+                "content": """
+                The Mechanical Engineering department at AUB offers ABET-accredited BE degrees, 
+                as well as ME and PhD programs. Focus areas include thermofluids, design, 
+                materials, manufacturing, and mechatronics. The department is known for its 
+                strong research programs and industry connections.
+                """,
+                "source": "fallback_info"
+            }]
+    except Exception as e:
+        logger.error(f"Error retrieving documents from mechanical_namespace: {str(e)}")
+        # Use fallback content in case of error
+        context = [{
+            "content": "Basic information about Mechanical Engineering at AUB's MSFEA faculty.",
+            "source": "error_fallback"
+        }]
     
     context_str = "\n".join([item["content"] for item in context])
     
