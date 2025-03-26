@@ -3,6 +3,26 @@ from bs4 import BeautifulSoup
 import json
 import time  # optional: to delay requests if needed
 import os
+import re
+import argparse
+import datetime
+import logging
+import sys
+from pathlib import Path
+
+# Create logs directory if it doesn't exist
+Path("logs").mkdir(exist_ok=True)
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("logs/scraper.log"),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger('aub_scraper')
 
 # Base URL for AUB Banner
 BASE_URL = "https://www-banner.aub.edu.lb"
@@ -173,12 +193,26 @@ def parse_subject_page_for_courses_and_details(html):
         # Extract course title and URL
         a_tag = title_row.find("a")
         if a_tag:
-            course["title"] = a_tag.text.strip()
+            full_title = a_tag.text.strip()
+            course["full_title"] = full_title
+            
+            # Parse the title using regex to handle the format:
+            # "Course Name - CRN - SUBJ NUM - Section"
+            title_pattern = r'(.*?) - (\d+) - ([A-Z]+) (\d+[A-Z]?) - (\w+)'
+            match = re.match(title_pattern, full_title)
+            
+            if match:
+                course["course_title"] = match.group(1).strip()
+                course["crn"] = match.group(2).strip()
+                course["subject_code"] = match.group(3).strip()
+                course["course_number"] = match.group(4).strip()
+                course["section"] = match.group(5).strip()
+            
             course["detail_url"] = a_tag.get("href", "")
             if course["detail_url"] and not course["detail_url"].startswith("http"):
                 course["detail_url"] = BASE_URL + course["detail_url"]
         else:
-            course["title"] = title_row.get_text(strip=True)
+            course["full_title"] = title_row.get_text(strip=True)
         
         # Get the parent TR, then find the next TR which should contain details
         parent_tr = title_row.parent
@@ -225,56 +259,210 @@ def parse_subject_page_for_courses_and_details(html):
                                     meeting_info.append(row_dict)
                             course["meeting_times"] = meeting_info
         
+        # Enhanced credit parsing
+        if "structured_details" in course and "Levels" in course["structured_details"]:
+            levels_text = course["structured_details"]["Levels"]
+            credit_match = re.search(r'(\d+\.\d+)\s+Credits', course["summary_details"])
+            if credit_match:
+                course["credits"] = float(credit_match.group(1))
+        
+        # Enhanced meeting time parsing
+        if "meeting_times" in course:
+            for meeting in course["meeting_times"]:
+                if "Time" in meeting:
+                    time_parts = meeting["Time"].split("-")
+                    if len(time_parts) == 2:
+                        meeting["start_time"] = time_parts[0].strip()
+                        meeting["end_time"] = time_parts[1].strip()
+                
+                if "Days" in meeting:
+                    days_text = meeting["Days"]
+                    days_mapping = {
+                        "M": "Monday",
+                        "T": "Tuesday", 
+                        "W": "Wednesday",
+                        "R": "Thursday",
+                        "F": "Friday",
+                        "S": "Saturday",
+                        "U": "Sunday"
+                    }
+                    meeting["days_array"] = [days_mapping.get(day, day) for day in days_text]
+                
+                if "Where" in meeting:
+                    where_text = meeting["Where"]
+                    # Look for patterns like "Building Name 123" where 123 is the room number
+                    room_pattern = r'(.*?)(\s+\w*\d+\w*)\s*$'
+                    room_match = re.search(room_pattern, where_text)
+                    if room_match:
+                        meeting["building"] = room_match.group(1).strip()
+                        meeting["room"] = room_match.group(2).strip()
+                    else:
+                        meeting["building"] = where_text
+                        meeting["room"] = ""
+        
+        # Find the course syllabus link
+        syllabus_link = details_td.find('a', href=lambda href: href and 'syllabi' in href)
+        if syllabus_link:
+            course["syllabus_url"] = syllabus_link['href']
+        
+        # Find the catalog entry link
+        catalog_link = details_td.find('a', href=lambda href: href and 'bwckctlg.p_display_courses' in href)
+        if catalog_link:
+            course["catalog_url"] = catalog_link['href']
+            if course["catalog_url"].startswith('/'):
+                course["catalog_url"] = BASE_URL + course["catalog_url"]
+        
+        # For each meeting_time entry, extract instructor emails
+        if "meeting_times" in course:
+            for meeting in course["meeting_times"]:
+                if "Instructors" in meeting:
+                    instructor_text = meeting["Instructors"]
+                    # Parse primary instructors (marked with P)
+                    primary_pattern = r'([^(]+)\s*\(\s*P\s*\)'
+                    primary_match = re.search(primary_pattern, instructor_text)
+                    if primary_match:
+                        meeting["primary_instructor"] = primary_match.group(1).strip()
+                    
+                    # Extract all instructors
+                    instructors = []
+                    # Clean up the text by removing email icons
+                    clean_text = re.sub(r'\s*\([^)]*\)\s*', ' ', instructor_text)
+                    instructor_names = [name.strip() for name in clean_text.split(',') if name.strip()]
+                    meeting["instructor_names"] = instructor_names
+        
+        # Extract status information (open, closed, etc.)
+        if "structured_details" in course and "Status" in course["structured_details"]:
+            status_text = course["structured_details"]["Status"]
+            course["status"] = status_text
+        
+        # Add a convenient course_code field (SUBJ NUM format)
+        if "subject_code" in course and "course_number" in course:
+            course["course_code"] = f"{course['subject_code']} {course['course_number']}"
+        
         courses.append(course)
     
     return courses
 
+# Add argument parsing
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='AUB Course Scraper')
+    parser.add_argument('--term', type=str, help='Term code to scrape (default: current configured term)')
+    parser.add_argument('--output-dir', type=str, default='output', help='Directory to save the output')
+    return parser.parse_args()
+
+# Modify your main function
 def main():
-    # Step 1: Get the initial schedule banner page.
-    initial_html = get_initial_page()
-    # Step 2: Parse the initial page to extract form action, hidden fields, and term options.
-    form_action, hidden_fields, terms = parse_initial_page(initial_html)
-    print("Available terms:")
-    for term_id, term_name in terms.items():
-        print(f"  {term_id}: {term_name}")
+    args = parse_arguments()
     
-    # Check if the selected term exists in the options.
-    if SELECTED_TERM not in terms:
-        raise Exception(f"Selected term '{SELECTED_TERM}' not found among available terms.")
+    # Use command line term if provided
+    term_to_use = args.term if args.term else SELECTED_TERM
+    output_dir = args.output_dir
     
-    # Process only the selected term.
-    term_name = terms[SELECTED_TERM]
-    print(f"\nProcessing selected term: {SELECTED_TERM} - {term_name}")
-    subj_html = submit_term(form_action, hidden_fields, SELECTED_TERM)
-    subjects, subj_soup = parse_subjects(subj_html)
-    # Extract hidden fields from the subject selection page.
-    subj_hidden = extract_hidden_fields(subj_soup)
+    start_time = datetime.datetime.now()
+    logger.info(f"Starting scraper for term {term_to_use}")
     
-    term_data = {
-        "term_name": term_name,
-        "subjects": {}
-    }
-    # For each subject, fetch courses.
-    for subj, subj_name in subjects.items():
-        print(f"  Processing subject: {subj} - {subj_name}")
-        courses_html = submit_subject(SELECTED_TERM, subj, subj_hidden)
-        courses = parse_subject_page_for_courses_and_details(courses_html)
+    try:
+        # Step 1: Get the initial schedule banner page.
+        initial_html = get_initial_page()
+        # Step 2: Parse the initial page to extract form action, hidden fields, and term options.
+        form_action, hidden_fields, terms = parse_initial_page(initial_html)
+        print("Available terms:")
+        for term_id, term_name in terms.items():
+            print(f"  {term_id}: {term_name}")
         
-        term_data["subjects"][subj] = {
-            "subject_name": subj_name,
-            "courses": courses
+        # Check if the selected term exists in the options.
+        if term_to_use not in terms:
+            raise Exception(f"Selected term '{term_to_use}' not found among available terms.")
+        
+        # Process only the selected term.
+        term_name = terms[term_to_use]
+        print(f"\nProcessing selected term: {term_to_use} - {term_name}")
+        subj_html = submit_term(form_action, hidden_fields, term_to_use)
+        subjects, subj_soup = parse_subjects(subj_html)
+        # Extract hidden fields from the subject selection page.
+        subj_hidden = extract_hidden_fields(subj_soup)
+        
+        term_data = {
+            "term_name": term_name,
+            "subjects": {}
         }
-    
-    # Create output directory if it doesn't exist
-    output_dir = "output"
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Save the data to a well-formatted JSON file
-    output_file = os.path.join(output_dir, f"aub_courses_{SELECTED_TERM}.json")
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump({SELECTED_TERM: term_data}, f, indent=2, ensure_ascii=False)
-    
-    print(f"\nData successfully saved to {output_file}")
+        # For each subject, fetch courses.
+        for subj, subj_name in subjects.items():
+            print(f"  Processing subject: {subj} - {subj_name}")
+            
+            # Add retry logic for network requests
+            max_retries = 3
+            retry_delay = 5  # seconds
+            
+            for retry in range(max_retries):
+                try:
+                    courses_html = submit_subject(term_to_use, subj, subj_hidden)
+                    courses = parse_subject_page_for_courses_and_details(courses_html)
+                    break
+                except requests.RequestException as e:
+                    if retry < max_retries - 1:
+                        logger.warning(f"Request failed for {subj}, retrying in {retry_delay} seconds... ({retry+1}/{max_retries})")
+                        time.sleep(retry_delay)
+                    else:
+                        logger.error(f"Failed to fetch data for {subj} after {max_retries} attempts: {e}")
+                        raise
+            
+            term_data["subjects"][subj] = {
+                "subject_name": subj_name,
+                "courses": courses
+            }
+        
+        # In the main function, add term metadata to each course
+        for subj, subj_data in term_data["subjects"].items():
+            for course in subj_data["courses"]:
+                course["term_id"] = term_to_use
+                course["term_name"] = term_name
+        
+        # Clean up the data structure before saving
+        for subj, subj_data in term_data["subjects"].items():
+            for course in subj_data["courses"]:
+                # Remove redundant fields
+                if "summary_details" in course:
+                    del course["summary_details"]
+                
+                if "structured_details" in course:
+                    # Extract any unique information from structured_details
+                    # then delete the field
+                    del course["structured_details"]
+                
+                # ... other cleanup logic ...
+        
+        # Add metadata
+        metadata = {
+            "scrape_timestamp": datetime.datetime.now().isoformat(),
+            "version": "1.0",
+            "course_count": sum(len(data["courses"]) for data in term_data["subjects"].values()),
+            "subject_count": len(term_data["subjects"])
+        }
+        
+        # Add metadata to output
+        output_data = {
+            "metadata": metadata,
+            term_to_use: term_data
+        }
+        
+        # Create output directory
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        
+        # Save to JSON file
+        output_file = Path(output_dir) / f"aub_courses_{term_to_use}.json"
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(output_data, f, indent=2, ensure_ascii=False)
+        
+        duration = (datetime.datetime.now() - start_time).total_seconds()
+        logger.info(f"Scraped {metadata['course_count']} courses in {duration:.2f} seconds")
+        logger.info(f"Data saved to {output_file}")
+        
+        return str(output_file)
+        
+    except Exception as e:
+        logger.error(f"Error during scraping: {e}", exc_info=True)
+        raise
 
 if __name__ == "__main__":
     main()
