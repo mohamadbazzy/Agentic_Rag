@@ -1,0 +1,19 @@
+# Log files
+logs/
+*.log
+
+# Debug files
+debug_response.html
+
+# Output data
+output/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+venv/
+env/ 
