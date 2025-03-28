@@ -21,7 +21,7 @@ original_index = vectorstore._index
 # The supervisor needs access to all department namespaces to properly route queries
 allowed_namespaces = ["supervisor_namespace", "mechanical_namespace", "chemical_namespace", 
                       "civil_namespace", "ece_namespace", "cse_namespace", "cce_namespace", 
-                      "msfea_advisor_namespace"]
+                      "msfea_advisor_namespace", "schedule_helper_namespace"]
 
 # Check if get_restricted_index accepts a list of namespaces
 try:
@@ -107,13 +107,13 @@ def supervisor(state: State):
 
     Choose from the following departments/units ONLY:
     - Architecture and Design (ARCH): For queries specifically about architecture, graphic design, or urban planning
-    - Biomedical Engineering (BMEN): For queries specifically about biomedical engineering, medical devices, or healthcare technology
     - Civil and Environmental Engineering (CEE): For queries specifically about civil engineering, construction, structural engineering, or environmental engineering
     - Chemical Engineering and Advanced Energy (CHEE): For queries specifically about chemical engineering, petroleum, or advanced energy
     - Electrical and Computer Engineering (ECE): For queries specifically about electrical engineering, computer engineering, CCE or CSE tracks
     - Industrial Engineering and Management (ENMG): For queries specifically about industrial engineering, engineering management, or operations
     - Mechanical Engineering (MECH): For queries specifically about mechanical engineering, thermal systems, materials, or manufacturing
     - MSFEA Advisor: For general engineering queries, faculty-wide policies, interdisciplinary programs, or when no specific department applies
+    - Schedule Helper: For queries specifically about class schedules, course schedules, or class timetables or who is giving a specific class or at what time
 
     IMPORTANT GUIDELINES FOR ROUTING:
     1. If the query is general or doesn't specify a department, choose "MSFEA Advisor".
@@ -126,7 +126,7 @@ def supervisor(state: State):
     8. When in doubt, choose "MSFEA Advisor" rather than a specific department.
     9. ONLY choose a specific department when the query explicitly mentions that department or is unambiguously related to its distinct field.
 
-    Return only the department name without any explanation.
+    Return only the department name or "Schedule Helper" without any explanation.
     """
     
     department_response = llm.invoke([{"role": "user", "content": department_prompt}])

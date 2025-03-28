@@ -11,6 +11,7 @@ from app.services.tracks.cse import cse_track
 from app.services.tracks.ece import ece_track
 from app.services.tracks.cce import cce_track
 from app.services.routing import route_to_department, route_to_ece_track
+from app.services.schedule_helper import schedule_helper
 from langchain_openai import ChatOpenAI
 from app.core.config import OPENAI_API_KEY
 from app.db.vector_store import vectorstore, get_agent_vectorstore
@@ -81,6 +82,7 @@ def build_graph():
     graph.add_node("cse", cse_track)
     graph.add_node("cce", cce_track)
     graph.add_node("ece_track", ece_track)
+    graph.add_node("schedule_helper", schedule_helper)
     
     # Define edges
     graph.add_edge(START, "supervisor")
@@ -94,6 +96,7 @@ def build_graph():
             "Industrial Engineering and Management (ENMG)": "industrial",
             "Electrical and Computer Engineering (ECE)": "ece",
             "MSFEA Advisor": "msfea_advisor",
+            "Schedule Helper": "schedule_helper",
             "Invalid": END
         }
     )

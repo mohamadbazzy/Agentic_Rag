@@ -7,7 +7,8 @@ def route_to_department(state: State):
     # Handle invalid queries (should never reach here as they're handled directly in process_query)
     if "invalid" in department.lower():
         return "Invalid"
-    
+    if any(term in department.lower() for term in ["schedule", "timetable", "class time", "course time", "scheduling", "class schedule", "course schedule", "class timetable", "course timetable"]):
+        return "Schedule Helper"
     # Route to the appropriate department
     if any(term in department.lower() for term in ["msfea advisor", "msfea", "general", "faculty", "advisor"]):
         return "MSFEA Advisor"
