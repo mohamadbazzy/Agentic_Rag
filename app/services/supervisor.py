@@ -2,12 +2,38 @@ from langchain_openai import ChatOpenAI
 from app.core.config import OPENAI_API_KEY
 from app.models.schemas import State
 from app.db.vector_store import vectorstore
+from .agent_index_wrapper import get_restricted_index
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Initialize OpenAI LLM
 llm = ChatOpenAI(
     api_key=OPENAI_API_KEY,
     model_name="gpt-4o"
 )
+
+# Get the restricted index for supervisor
+# Wrap the vector store's underlying Pinecone index
+original_index = vectorstore._index
+
+# The supervisor needs access to all department namespaces to properly route queries
+allowed_namespaces = ["supervisor_namespace", "mechanical_namespace", "chemical_namespace", 
+                      "civil_namespace", "ece_namespace", "cse_namespace", "cce_namespace", 
+                      "msfea_advisor_namespace"]
+
+# Check if get_restricted_index accepts a list of namespaces
+try:
+    restricted_index = get_restricted_index(original_index, "supervisor", allowed_namespaces)
+except TypeError:
+    # If it doesn't accept a list, use the original index (unrestricted)
+    logger.info("Supervisor needs access to all namespaces for proper routing - using unrestricted index")
+    restricted_index = original_index
+
+# Replace the vector store's index with the restricted one
+vectorstore._index = restricted_index
+logger.info("Created index for supervisor with access to all necessary department namespaces")
 
 def handle_invalid_query(reason):
     """Generate a response for invalid queries"""
@@ -110,6 +136,7 @@ def supervisor(state: State):
     query_type = "General"  # Default value without making an API call
     
     # STEP 4: Retrieve context based on department and query type
+    # Using the restricted index for similarity search
     docs = vectorstore.similarity_search(f"{department} department {query_type} {user_message}", k=3)
     context = [{"content": doc.page_content, "source": doc.metadata.get("source", "unknown")} 
                for doc in docs]

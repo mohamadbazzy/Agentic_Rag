@@ -1,6 +1,11 @@
 from langchain_openai import ChatOpenAI
 from app.core.config import OPENAI_API_KEY
 from app.models.schemas import State
+from app.db.vector_store import get_agent_vectorstore
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Initialize OpenAI LLM
 llm = ChatOpenAI(
@@ -8,11 +13,52 @@ llm = ChatOpenAI(
     model_name="gpt-3.5-turbo"
 )
 
+# Get a dedicated vector store for chemical department
+chemical_vectorstore = get_agent_vectorstore("chemical")
+
 def chemical_department(state: State):
     """Handle queries about the Chemical Engineering department"""
     user_message = state["messages"][-1].content
     query_type = state.get("query_type", "General")
-    context = state.get("context", [])
+    
+    # Always retrieve from chemical's namespace, regardless of passed context
+    search_query = f"Chemical Engineering: {query_type} - {user_message}"
+    
+    try:
+        # Debug output to track the search
+        logger.info(f"Searching chemical_namespace with query: {search_query}")
+        
+        # Ensure we're using the correct vectorstore and namespace
+        chem_docs = chemical_vectorstore.similarity_search(
+            search_query, 
+            k=3,
+            namespace="chemical_namespace",  # Explicitly specify namespace
+            filter={"department": "chemical"}  # Add a filter for chemical department
+        )
+        
+        logger.info(f"Found {len(chem_docs)} documents in chemical_namespace")
+        
+        if chem_docs:
+            context = [{"content": doc.page_content, "source": doc.metadata.get("source", "unknown")} 
+                    for doc in chem_docs]
+        else:
+            # Fallback to hardcoded information if no docs found
+            logger.warning("No documents found in chemical_namespace, using fallback content")
+            context = [{
+                "content": """
+                The Chemical Engineering and Advanced Energy (CHEE) department at AUB offers ABET-accredited BE degrees,
+                as well as ME and PhD programs. The department focuses on chemical processes, petroleum engineering,
+                and advanced energy technologies. Research areas include catalysis, polymers, and sustainable energy.
+                """,
+                "source": "fallback_info"
+            }]
+    except Exception as e:
+        logger.error(f"Error retrieving documents from chemical_namespace: {str(e)}")
+        # Use fallback content in case of error
+        context = [{
+            "content": "Basic information about Chemical Engineering at AUB's MSFEA faculty.",
+            "source": "error_fallback"
+        }]
     
     context_str = "\n".join([item["content"] for item in context])
     
