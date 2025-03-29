@@ -420,6 +420,9 @@ def main():
         
         # Clean up the data structure before saving
         for subj, subj_data in term_data["subjects"].items():
+            # Reorganize courses to group sections by course code
+            courses_by_code = {}
+            
             for course in subj_data["courses"]:
                 # Remove redundant fields
                 if "summary_details" in course:
@@ -430,13 +433,21 @@ def main():
                     # then delete the field
                     del course["structured_details"]
                 
-                # ... other cleanup logic ...
+                # Group courses by course_code
+                course_code = course.get("course_code")
+                if course_code:
+                    if course_code not in courses_by_code:
+                        courses_by_code[course_code] = []
+                    courses_by_code[course_code].append(course)
+            
+            # Replace the flat courses list with the grouped dictionary
+            subj_data["courses"] = courses_by_code
         
         # Add metadata
         metadata = {
             "scrape_timestamp": datetime.datetime.now().isoformat(),
             "version": "1.0",
-            "course_count": sum(len(data["courses"]) for data in term_data["subjects"].values()),
+            "course_count": sum(sum(len(sections) for sections in data["courses"].values()) for data in term_data["subjects"].values()),
             "subject_count": len(term_data["subjects"])
         }
         

@@ -114,95 +114,87 @@ def extract_time_info(meeting_times: List[Dict]) -> str:
 
 def create_chunks_from_course_data(course_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    Create semantically meaningful chunks from course data that are relevant for scheduling
+    Create semantically meaningful chunks from course data that are relevant for scheduling.
+    Each chunk contains all sections of a specific course.
     """
     chunks = []
     
     # Process the nested course structure
     for term_id, term_data in course_data.items():
+        if term_id == "metadata":  # Skip metadata section
+            continue
+            
         term_name = term_data.get("term_name", "Unknown Term")
         
         # Process each subject
         for subject_code, subject_data in term_data.get("subjects", {}).items():
             subject_name = subject_data.get("subject_name", "Unknown Subject")
             
-            # Process each course in the subject
-            for course in subject_data.get("courses", []):
-                course_title = course.get("course_title", "Unknown Course")
-                course_code = course.get("course_code", "Unknown Code")
-                course_crn = course.get("crn", "Unknown CRN")
-                course_credits = course.get("credits", "Unknown Credits")
-                course_section = course.get("section", "")
+            # Process each course code and its sections
+            for course_code, course_sections in subject_data.get("courses", {}).items():
+                if not course_sections:  # Skip if no sections
+                    continue
                 
-                # Get subject code from course if available
-                course_subj = course.get("subject_code", subject_code)
+                # Get course info from first section (common across sections)
+                first_section = course_sections[0]
+                course_title = first_section.get("course_title", "Unknown Course")
+                course_subj = first_section.get("subject_code", subject_code)
+                course_number = first_section.get("course_number", "")
+                course_credits = first_section.get("credits", "Unknown Credits")
                 
-                # Get section information
-                section_info = f"Section {course_section}" if course_section else ""
+                # Create a combined description for all sections
+                sections_info = []
                 
-                # Extract meeting time information
-                meeting_times_str = extract_time_info(course.get("meeting_times", []))
-                
-                # Create a scheduling-focused description
-                schedule_description = f"""
-Course: {course_subj} {course.get("course_number", "")} - {course_title} {section_info}
-CRN: {course_crn}
-Credits: {course_credits}
-Term: {term_name} ({term_id})
-
+                for section in course_sections:
+                    section_code = section.get("section", "")
+                    crn = section.get("crn", "Unknown CRN")
+                    
+                    # Extract meeting time information for this section
+                    meeting_times_str = extract_time_info(section.get("meeting_times", []))
+                    
+                    section_description = f"""
+Section: {section_code}
+CRN: {crn}
 Schedule Information:
 {meeting_times_str}
+"""
+                    sections_info.append(section_description.strip())
+                
+                # Create a consolidated course description with all sections
+                course_description = f"""
+Course: {course_subj} {course_number} - {course_title}
+Credits: {course_credits}
+Term: {term_name} ({term_id})
+Subject: {subject_name} ({subject_code})
 
-This course is part of the {subject_name} ({subject_code}) subject area.
-                """.strip()
+Available Sections:
+"""
+                # Add all section information
+                course_description += "\n\n".join(sections_info)
                 
                 # Create metadata for effective retrieval
                 metadata = {
                     "course_code": course_code,
                     "course_title": course_title,
                     "subject": course_subj,
-                    "crn": course_crn,
-                    "section": course_section,
                     "term_id": term_id,
                     "term_name": term_name,
                     "type": "course_schedule",
-                    "source": f"{course_subj}_{course.get('course_number', '')}_{course_section}",
-                    "days": [],
-                    "start_time": "",
-                    "end_time": "",
-                    "building": "",
-                    "room": ""
+                    "source": f"{course_subj}_{course_number}",
+                    "section_count": len(course_sections),
+                    "crns": [section.get("crn", "") for section in course_sections]
                 }
                 
-                # Add more detailed metadata from meeting times if available
-                if "meeting_times" in course and course["meeting_times"]:
-                    primary_meeting = course["meeting_times"][0]  # Use first meeting as primary
-                    
-                    if "days_array" in primary_meeting:
-                        metadata["days"] = primary_meeting["days_array"]
-                        
-                    if "start_time" in primary_meeting:
-                        metadata["start_time"] = primary_meeting["start_time"]
-                        
-                    if "end_time" in primary_meeting:
-                        metadata["end_time"] = primary_meeting["end_time"]
-                        
-                    if "building" in primary_meeting:
-                        metadata["building"] = primary_meeting["building"]
-                        
-                    if "room" in primary_meeting:
-                        metadata["room"] = primary_meeting["room"]
-                
                 chunks.append({
-                    "text": schedule_description,
+                    "text": course_description,
                     "metadata": metadata
                 })
                 
                 # If there are prerequisites, add them as another chunk
-                if "prerequisites" in course and course["prerequisites"]:
+                if "prerequisites" in first_section and first_section["prerequisites"]:
                     prereq_description = f"""
-Course: {course_subj} {course.get("course_number", "")} - {course_title}
-Prerequisites: {course["prerequisites"]}
+Course: {course_subj} {course_number} - {course_title}
+Prerequisites: {first_section["prerequisites"]}
 
 These prerequisites should be considered when planning your schedule to ensure you meet all requirements.
                     """.strip()

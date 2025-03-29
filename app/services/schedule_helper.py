@@ -30,7 +30,7 @@ def schedule_helper(state: State):
         # Get information from vector store
         docs = schedule_helper_vectorstore.similarity_search(
             search_query,
-            k=7  # Retrieve top 5 most relevant chunks
+            k=15  
         )
         context = [{"content": doc.page_content, "source": doc.metadata.get("source", "unknown")} 
                   for doc in docs]
