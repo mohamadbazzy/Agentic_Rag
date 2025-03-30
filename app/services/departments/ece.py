@@ -21,7 +21,7 @@ def ece_department(state: State):
     Handle queries about the ECE department and determine which track within ECE
     the query is about
     """
-    user_message = state["messages"][-1].content
+    user_message = state["messages"][-1]["content"]
     query_type = state.get("query_type", "General")
     
     # Always retrieve from ECE's namespace, regardless of passed context
@@ -65,11 +65,9 @@ def ece_department(state: State):
     
     context_str = "\n".join([item["content"] for item in context])
     
-    # Determine which ECE track the query is about
-    prompt = f"""
-    You are the academic advisor for the Electrical and Computer Engineering (ECE) department at AUB's MSFEA you can answer general questions about the department but if the question is about a specific track Return only the track abbreviation (CSE, CCE, or ECE) without any explanation..
-
-
+    # First determine which ECE track the query is about (keep this functionality)
+    track_prompt = f"""
+    You are the academic advisor for the Electrical and Computer Engineering (ECE) department at AUB's MSFEA.
     Determine which specific track within ECE this query is most directly related to:
     Query: {user_message}
 
@@ -87,9 +85,47 @@ def ece_department(state: State):
     6. When in doubt, choose "ECE" rather than a specific track.
     7. Never force a query into CSE or CCE unless it is clearly about their specialized topics.
 
+    Return only the track abbreviation (CSE, CCE, or ECE).
     """
     
-    track_response = llm.invoke([{"role": "user", "content": prompt}])
+    track_response = llm.invoke([{"role": "user", "content": track_prompt}])
     track = track_response.content.strip()
     
-    return {"track": track}
+    # Now create a custom system message based on the determined track
+    track_info = {
+        "CSE": "Computer Science and Engineering (CSE) track focuses on computer architecture, hardware design, VLSI, embedded systems, IoT devices, operating systems, and hardware-software integration.",
+        "CCE": "Computer and Communications Engineering (CCE) track focuses on telecommunications, networking, wireless systems, information theory, security, and signal processing for communications.",
+        "ECE": "General Electrical and Computer Engineering (ECE) track covers a broad range of topics including power systems, control systems, electronics, and signals & systems."
+    }
+    
+    # Create the system message with track-specific information
+    system_message = f"""
+    You are an academic advisor for the Electrical and Computer Engineering (ECE) department at AUB's Maroun Semaan Faculty of Engineering and Architecture (MSFEA), with expertise in the {track} track.
+    
+    The student is asking about: {query_type}
+    
+    IMPORTANT: You specialize in the {track} track. {track_info.get(track, "")}
+    
+    Department Specifics:
+    - The department offers a BE in Electrical and Computer Engineering (accredited by ABET)
+    - The department has three main tracks: Computer Science and Engineering (CSE), Computer and Communications Engineering (CCE), and general Electrical and Computer Engineering (ECE)
+    - Master's programs include ME in Electrical and Computer Engineering with various specializations
+    - PhD in Electrical and Computer Engineering is available
+    
+    Use the following information to help answer their question:
+    {context_str}
+    
+    Important: Only answer from the information provided. If you don't know the answer, say so.
+    Respond in a professional, helpful manner appropriate for an academic advisor at AUB.
+    """
+    
+    # Generate the response with the specialized system message
+    messages = [{"role": "system", "content": system_message}] + state["messages"]
+    response = llm.invoke(messages)
+    
+    # Return in the same format as other departments
+    return {
+        "messages": response,
+        "track": track,  # Keep track info for potential future use
+        "department": f"Electrical & Computer ({track})"  # Include track in department name
+    }

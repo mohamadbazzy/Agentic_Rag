@@ -18,7 +18,7 @@ civil_vectorstore = get_agent_vectorstore("civil")
 
 def civil_department(state: State):
     """Handle queries about the Civil Engineering department"""
-    user_message = state["messages"][-1].content
+    user_message = state["messages"][-1]["content"]
     query_type = state.get("query_type", "General")
     
     # Always retrieve from civil's namespace, regardless of passed context
@@ -86,4 +86,7 @@ def civil_department(state: State):
     messages = [{"role": "system", "content": system_message}] + state["messages"]
     response = llm.invoke(messages)
     
-    return {"messages": response}
+    return {
+        "messages": response,
+        "department": "Civil and Environmental Engineering (CEE)"
+    }

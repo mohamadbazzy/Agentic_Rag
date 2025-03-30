@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MSFEA Academic Advisor</title>
+    <link rel="icon" href="images/aub_logo.png" type="image/png">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Top Buttons (Language Toggle and Reset) -->
+    <div class="top-buttons">
+        <button id="languageToggle" aria-label="Toggle Language">
+            <span id="languageLabel">En</span>
+        </button>
+        <button id="resetButton" aria-label="Reset Advisor">
+            Reset
+        </button>
+    </div>
+
+    <!-- Sidebar Toggle Button -->
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Open Sidebar">
+        <img src="images/side.png" alt="Open Sidebar" class="toggle-icon">
+    </button>
+
+    <!-- Sidebar with Departments -->
+    <div class="sidebar" id="sidebar">
+        <button class="close-sidebar" id="closeSidebar" aria-label="Close Sidebar">
+            <img src="images/side2nd.png" alt="Close Sidebar" class="close-icon">
+        </button>
+        <img src="images/msfea_logo.png" alt="MSFEA Logo" class="sidebar-logo">
+        <h2>MSFEA Advisor</h2>
+        <p>Your academic guidance assistant.</p>
+        
+        <!-- Department Selection -->
+        <div class="departments-section">
+            <h3>Departments</h3>
+            <div class="department-list" id="departmentList">
+                <!-- Will be populated via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Display Area -->
+    <div class="chat-display" id="chatDisplay">
+        <!-- Initial Advisor Message -->
+        <div class="chat-container bot-chat-container">
+            <img src="images/advisor_icon.png" alt="Advisor" class="message-icon">
+            <div class="chat-content bot-bubble chat-bubble">
+                <span class="sender-label">MSFEA Advisor:</span> <span>Hello! How can I assist you with your academic inquiries today?</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fixed Input Container -->
+    <div class="fixed-input-container">
+        <input type="text" id="userInput" placeholder="Ask about programs, courses, departments..." autocomplete="off">
+        
+        <!-- Send Button -->
+        <button id="sendButton" aria-label="Send Message">
+            <img src="images/arrow.png" alt="Send" class="send-icon">
+        </button>
+    </div>
+
+    <!-- Input Disclaimer -->
+    <div class="input-disclaimer">
+        AUB MSFEA Academic Advisor is an AI assistant. For official guidance, please consult with faculty advisors.
+    </div>
+
+    <!-- JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html>

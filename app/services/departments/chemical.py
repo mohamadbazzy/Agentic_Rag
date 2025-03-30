@@ -18,7 +18,7 @@ chemical_vectorstore = get_agent_vectorstore("chemical")
 
 def chemical_department(state: State):
     """Handle queries about the Chemical Engineering department"""
-    user_message = state["messages"][-1].content
+    user_message = state["messages"][-1]["content"]
     query_type = state.get("query_type", "General")
     
     # Always retrieve from chemical's namespace, regardless of passed context
@@ -85,4 +85,7 @@ def chemical_department(state: State):
     messages = [{"role": "system", "content": system_message}] + state["messages"]
     response = llm.invoke(messages)
     
-    return {"messages": response}
+    return {
+        "messages": response,
+        "department": "Chemical Engineering and Advanced Energy (CHEE)"
+    }

@@ -30,39 +30,113 @@ llm = ChatOpenAI(
 # Get a dedicated vector store for advisor
 advisor_vectorstore = get_agent_vectorstore("advisor")
 
-def process_query(query_text: str) -> QueryResponse:
-    """
-    Process a student query and generate a response
-    """
+def process_query(text):
+    """Process user query and return appropriate response"""
     try:
-        # Create the chat graph
-        graph = build_graph()
+        # Create a simple state with the user message
+        state = {"messages": [{"role": "user", "content": text}]}
         
-        # Create the initial state
-        state = {
-            "messages": [{"role": "user", "content": query_text}],
-            "is_valid": True,
-        }
+        # Determine the department
+        department = determine_department(text)
         
-        # Execute the graph
-        result = graph.invoke(state)
-        
-        # Extract the response from the final state
-        if "messages" in result and len(result["messages"]) > 0:
-            response_content = result["messages"][-1].content
+        # Process based on department
+        if department == "Chemical Engineering and Advanced Energy (CHEE)":
+            result = chemical_department(state)
+            print(f"Raw result from department handler: {type(result)}")
+            if isinstance(result, dict):
+                print(f"Keys in result: {result.keys()}")
+                if "messages" in result:
+                    print(f"Type of messages: {type(result['messages'])}")
+                    print(f"Messages content: {result['messages']}")
+            content = extract_content_from_llm_response(result)
+            print(f"Department Handler Result: {result}")
+            print(f"Extracted Content: {content}")
+            return {
+                "content": content,
+                "department": result["department"] if "department" in result else "MSFEA Advisor"
+            }
+        elif department == "Mechanical Engineering (MECH)":
+            result = mechanical_department(state)
+            content = extract_content_from_llm_response(result)
+            print(f"Department Handler Result: {result}")
+            print(f"Extracted Content: {content}")
+            return {
+                "content": content,
+                "department": result["department"] if "department" in result else "MSFEA Advisor"
+            }
+        elif department == "Civil and Environmental Engineering (CEE)":
+            result = civil_department(state)
+            content = extract_content_from_llm_response(result)
+            print(f"Department Handler Result: {result}")
+            print(f"Extracted Content: {content}")
+            return {
+                "content": content,
+                "department": result["department"] if "department" in result else "MSFEA Advisor"
+            }
+        elif department == "Electrical and Computer Engineering (ECE)":
+            result = ece_department(state)
+            content = extract_content_from_llm_response(result)
+            print(f"Department Handler Result: {result}")
+            print(f"Extracted Content: {content}")
+            return {
+                "content": content,
+                "department": result["department"] if "department" in result else "MSFEA Advisor"
+            }
+        elif department == "Industrial Engineering and Management (ENMG)":
+            result = industrial_department(state)
+            content = extract_content_from_llm_response(result)
+            print(f"Department Handler Result: {result}")
+            print(f"Extracted Content: {content}")
+            return {
+                "content": content,
+                "department": result["department"] if "department" in result else "MSFEA Advisor"
+            }
         else:
-            response_content = "I'm sorry, I couldn't process your request."
-            
-        # Get context if available
-        context = result.get("context", [])
-        
-        return QueryResponse(
-            response=response_content,
-            context=context
-        )
+            # Use the MSFEA advisor for general queries
+            result = msfea_advisor(state)
+            content = extract_content_from_llm_response(result)
+            print(f"Department Handler Result: {result}")
+            print(f"Extracted Content: {content}")
+            return {
+                "content": content,
+                "department": result["department"] if "department" in result else "MSFEA Advisor"
+            }
     except Exception as e:
-        logger.error(f"Error processing query: {str(e)}")
-        raise
+        logger.error(f"Error in process_query: {str(e)}", exc_info=True)
+        return {
+            "content": "I apologize, but I encountered an error while processing your question. Please try again or ask something different.",
+            "department": "MSFEA Advisor"
+        }
+
+def extract_content_from_llm_response(result):
+    """Extract content from LLM response"""
+    try:
+        print(f"Extracting content from: {type(result)}")
+        
+        # If result is a dictionary with 'messages' key
+        if isinstance(result, dict) and 'messages' in result:
+            messages = result['messages']
+            print(f"Found messages: {type(messages)}")
+            
+            # Check if messages is an AIMessage object (from langchain)
+            if hasattr(messages, 'content'):
+                # This is for langchain AIMessage objects
+                return messages.content
+                
+            # If messages is a list, get the last one
+            elif isinstance(messages, list) and len(messages) > 0:
+                last_message = messages[-1]
+                if isinstance(last_message, dict) and 'content' in last_message:
+                    return last_message['content']
+        
+        # Direct content in result
+        if isinstance(result, dict) and 'content' in result:
+            return result['content']
+            
+        return "No content available - extraction failed"
+    except Exception as e:
+        print(f"Error extracting content: {str(e)}")
+        return "Error extracting response content"
 
 def build_graph():
     """
@@ -123,3 +197,44 @@ def build_graph():
     graph.add_edge("ece_track", END)
     
     return graph.compile()
+
+def determine_department(text):
+    """Determine which department the query is about"""
+    text_lower = text.lower()
+    
+    if "chemical" in text_lower or "chee" in text_lower or "chen" in text_lower:
+        return "Chemical Engineering and Advanced Energy (CHEE)"
+    elif "mechanical" in text_lower or "mech" in text_lower:
+        return "Mechanical Engineering (MECH)"
+    elif "civil" in text_lower or "cee" in text_lower:
+        return "Civil and Environmental Engineering (CEE)"
+    elif "electrical" in text_lower or "computer" in text_lower or "ece" in text_lower:
+        return "Electrical and Computer Engineering (ECE)"
+    elif "industrial" in text_lower or "enmg" in text_lower:
+        return "Industrial Engineering and Management (ENMG)"
+    else:
+        return "MSFEA Advisor"
+
+def chemical_department_handler(text):
+    """Basic handler for chemical engineering queries"""
+    return "The Chemical Engineering and Advanced Energy (CHEE) department at AUB offers BE, ME, and PhD programs in Chemical Engineering. The department focuses on chemical processes, petroleum engineering, and advanced energy technologies."
+
+def mechanical_department_handler(text):
+    """Basic handler for mechanical engineering queries"""
+    return "The Mechanical Engineering (MECH) department offers programs covering thermofluids, design, materials, and manufacturing. The department offers BE, ME, and PhD degrees, all accredited by ABET."
+
+def civil_department_handler(text):
+    """Basic handler for civil engineering queries"""
+    return "The Civil and Environmental Engineering (CEE) department covers infrastructure, structural engineering, water resources, and environmental engineering. The department offers BE, ME, and PhD degrees."
+
+def electrical_department_handler(text):
+    """Basic handler for electrical engineering queries"""
+    return "The Electrical and Computer Engineering (ECE) department includes electrical engineering and computer engineering with CSE and CCE tracks. The department offers BE, ME, and PhD degrees."
+
+def industrial_department_handler(text):
+    """Basic handler for industrial engineering queries"""
+    return "The Industrial Engineering and Management (ENMG) department covers operations research, management, and production systems. The department offers BE, ME, and PhD degrees."
+
+def msfea_advisor_handler(text):
+    """Basic handler for general MSFEA queries"""
+    return f"Thank you for your question about '{text}'. MSFEA houses 7 departments: Architecture and Design (ARCH), Biomedical Engineering (BMEN), Civil and Environmental Engineering (CEE), Chemical Engineering (CHEE), Electrical and Computer Engineering (ECE), Industrial Engineering (ENMG), and Mechanical Engineering (MECH). All departments offer accredited undergraduate and graduate programs."

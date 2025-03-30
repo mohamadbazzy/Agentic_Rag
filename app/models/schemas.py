@@ -18,9 +18,11 @@ class QueryRequest(BaseModel):
     
 class QueryResponse(BaseModel):
     """Model for query responses"""
-    response: str
-    department: Optional[str] = None
-    query_type: Optional[str] = None
+    content: str
+    department: Optional[str] = "MSFEA Advisor"
+    
+    # Optional fields for additional data
+    status: Optional[str] = None
     
 class ErrorResponse(BaseModel):
     """Model for error responses"""

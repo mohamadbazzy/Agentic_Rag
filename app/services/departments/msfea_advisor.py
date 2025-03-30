@@ -18,7 +18,7 @@ msfea_advisor_vectorstore = get_agent_vectorstore("msfea_advisor")
 
 def msfea_advisor(state: State):
     """Handle general queries about the Maroun Semaan Faculty of Engineering and Architecture"""
-    user_message = state["messages"][-1].content
+    user_message = state["messages"][-1]["content"]
     query_type = state.get("query_type", "General")
     
     # Always retrieve from MSFEA advisor's namespace, regardless of passed context
@@ -123,4 +123,7 @@ def msfea_advisor(state: State):
     messages = [{"role": "system", "content": system_message}] + state["messages"]
     response = llm.invoke(messages)
     
-    return {"messages": response}
+    return {
+        "messages": response,
+        "department": "MSFEA Advisor"
+    }
