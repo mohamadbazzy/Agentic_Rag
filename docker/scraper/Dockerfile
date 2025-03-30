@@ -3,11 +3,11 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Install dependencies
-COPY requirements.txt .
+COPY Scraper/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy scraper code
-COPY scraper.py .
+COPY Scraper/scraper.py .
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/output

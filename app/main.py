@@ -1,7 +1,10 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.api.router import api_router
+from app.models.schemas import State
+from app.services.routing import route_to_department
+from app.services.advisor import process_query as advisor
 import logging
 
 # Set up logging
@@ -37,3 +40,19 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": f"An unexpected error occurred: {str(exc)}"},
     )
+
+@app.post("/api/chat")
+async def chat(state: State):
+    try:
+        # Process the message through the advisor graph
+        response = advisor(state)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/reset")
+async def reset():
+    # Add logic to reset the conversation state
+    return {"message": "Conversation reset successfully"}
+
+# Additional routes as needed
