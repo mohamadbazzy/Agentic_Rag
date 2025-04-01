@@ -4,7 +4,7 @@ def route_to_department(state: State):
     """Route to the appropriate department based on the determined department"""
     department = state.get("department", "").lower()
     
-    # Handle invalid queries (should never reach here as they're handled directly in process_query)
+    # Handle invalid queries
     if "invalid" in department.lower():
         return "Invalid"
     if any(term in department.lower() for term in ["schedule", "timetable", "class time", "course time", "scheduling", "class schedule", "course schedule", "class timetable", "course timetable"]):
@@ -28,12 +28,13 @@ def route_to_department(state: State):
 
 def route_to_ece_track(state: State):
     """Route to the appropriate ECE track based on the determined track"""
-    track = state.get("track", "").upper()
+    track = state.get("track", "").upper()  # Convert to uppercase for consistency
     
+    # Be more lenient with matching - look for substrings
     if "CSE" in track:
-        return "cse_track"
+        return "cse"
     elif "CCE" in track:
-        return "cce_track"
+        return "cce"
     else:
-        # Default to general ECE track
+        # Default to general ECE track if no specific track is detected
         return "ece_track"

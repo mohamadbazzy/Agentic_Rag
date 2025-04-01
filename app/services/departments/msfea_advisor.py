@@ -3,6 +3,7 @@ from app.core.config import OPENAI_API_KEY
 from app.models.schemas import State
 from app.db.vector_store import get_agent_vectorstore
 import logging
+from app.services.utils import get_last_user_message
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -18,7 +19,8 @@ msfea_advisor_vectorstore = get_agent_vectorstore("msfea_advisor")
 
 def msfea_advisor(state: State):
     """Handle general queries about the Maroun Semaan Faculty of Engineering and Architecture"""
-    user_message = state["messages"][-1]["content"]
+    # Safely get the user message
+    user_message = get_last_user_message(state)
     query_type = state.get("query_type", "General")
     
     # Always retrieve from MSFEA advisor's namespace, regardless of passed context
@@ -123,7 +125,4 @@ def msfea_advisor(state: State):
     messages = [{"role": "system", "content": system_message}] + state["messages"]
     response = llm.invoke(messages)
     
-    return {
-        "messages": response,
-        "department": "MSFEA Advisor"
-    }
+    return {"messages": response}

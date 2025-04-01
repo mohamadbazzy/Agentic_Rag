@@ -18,7 +18,7 @@ industrial_vectorstore = get_agent_vectorstore("industrial")
 
 def industrial_department(state: State):
     """Handle queries about the Industrial Engineering department"""
-    user_message = state["messages"][-1]["content"]
+    user_message = state["messages"][-1].content
     query_type = state.get("query_type", "General")
     
     # Always retrieve from industrial's namespace, regardless of passed context
@@ -46,14 +46,10 @@ def industrial_department(state: State):
             logger.warning("No documents found in industrial_namespace, using fallback content")
             context = [{
                 "content": """
-                The Industrial Engineering Program extends over a four-year period and is offered
-                exclusively on a daytime, on-campus basis. The program is offered in eleven terms
-                whereby eight terms are 16-week Fall/Spring semesters given over four years, and three
-                terms are eight-week summer terms taken during the first three years of the program.
-                In the summer term of the third year (Term IX), students are required to participate in a
-                practical training program with a local, regional or international organization. The entire
-                program is equivalent to five academic years but is completed in four calendar years
-                with three summer terms.
+                The Industrial Engineering and Management (ENMG) department at AUB offers ABET-accredited BE degrees, 
+                as well as ME and PhD programs. Focus areas include operations research, management, production systems, 
+                optimization, and systems engineering. The department provides training to optimize complex systems and processes,
+                with applications in manufacturing, healthcare, logistics, and service industries.
                 """,
                 "source": "fallback_info"
             }]
@@ -61,7 +57,7 @@ def industrial_department(state: State):
         logger.error(f"Error retrieving documents from industrial_namespace: {str(e)}")
         # Use fallback content in case of error
         context = [{
-            "content": "Basic information about Industrial Engineering at AUB's MSFEA faculty.",
+            "content": "The Industrial Engineering and Management department focuses on operations research, management, and production systems. The program prepares students to optimize complex systems and processes.",
             "source": "error_fallback"
         }]
     
@@ -85,7 +81,4 @@ def industrial_department(state: State):
     messages = [{"role": "system", "content": system_message}] + state["messages"]
     response = llm.invoke(messages)
     
-    return {
-        "messages": response,
-        "department": "Industrial Engineering and Management (ENMG)"
-    }
+    return {"messages": response}

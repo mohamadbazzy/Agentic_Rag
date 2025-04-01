@@ -18,7 +18,7 @@ civil_vectorstore = get_agent_vectorstore("civil")
 
 def civil_department(state: State):
     """Handle queries about the Civil Engineering department"""
-    user_message = state["messages"][-1]["content"]
+    user_message = state["messages"][-1].content
     query_type = state.get("query_type", "General")
     
     # Always retrieve from civil's namespace, regardless of passed context
@@ -46,9 +46,10 @@ def civil_department(state: State):
             logger.warning("No documents found in civil_namespace, using fallback content")
             context = [{
                 "content": """
-                The Civil and Environmental Engineering (CEE) department at AUB offers ABET-accredited BE degrees,
-                as well as ME and PhD programs. Focus areas include structural engineering, construction management,
-                transportation, water resources, geotechnical, and environmental engineering.
+                The Civil and Environmental Engineering (CEE) department at AUB offers ABET-accredited BE degrees, 
+                as well as ME and PhD programs. Focus areas include structural engineering, construction management, 
+                transportation, water resources, geotechnical, and environmental engineering. The department has strong 
+                research programs in sustainability, infrastructure development, and environmental solutions.
                 """,
                 "source": "fallback_info"
             }]
@@ -56,7 +57,7 @@ def civil_department(state: State):
         logger.error(f"Error retrieving documents from civil_namespace: {str(e)}")
         # Use fallback content in case of error
         context = [{
-            "content": "Basic information about Civil Engineering at AUB's MSFEA faculty.",
+            "content": "The Civil and Environmental Engineering department offers programs covering infrastructure design, structural engineering, water resources, environmental engineering, and construction management.",
             "source": "error_fallback"
         }]
     
@@ -86,7 +87,4 @@ def civil_department(state: State):
     messages = [{"role": "system", "content": system_message}] + state["messages"]
     response = llm.invoke(messages)
     
-    return {
-        "messages": response,
-        "department": "Civil and Environmental Engineering (CEE)"
-    }
+    return {"messages": response}

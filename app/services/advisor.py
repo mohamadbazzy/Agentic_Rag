@@ -17,6 +17,7 @@ from app.core.config import OPENAI_API_KEY
 from app.db.vector_store import vectorstore, get_agent_vectorstore
 from app.models.schemas import QueryResponse
 import logging
+from app.services.utils import ensure_compatible_state, get_last_user_message
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -30,83 +31,45 @@ llm = ChatOpenAI(
 # Get a dedicated vector store for advisor
 advisor_vectorstore = get_agent_vectorstore("advisor")
 
-def process_query(text):
-    """Process user query and return appropriate response"""
+def process_query(query_text: str) -> QueryResponse:
+    """
+    Process a student query and generate a response
+    """
     try:
-        # Create a simple state with the user message
-        state = {"messages": [{"role": "user", "content": text}]}
+        # Create the chat graph
+        graph = build_graph()
         
-        # Determine the department
-        department = determine_department(text)
-        
-        # Process based on department
-        if department == "Chemical Engineering and Advanced Energy (CHEE)":
-            result = chemical_department(state)
-            print(f"Raw result from department handler: {type(result)}")
-            if isinstance(result, dict):
-                print(f"Keys in result: {result.keys()}")
-                if "messages" in result:
-                    print(f"Type of messages: {type(result['messages'])}")
-                    print(f"Messages content: {result['messages']}")
-            content = extract_content_from_llm_response(result)
-            print(f"Department Handler Result: {result}")
-            print(f"Extracted Content: {content}")
-            return {
-                "content": content,
-                "department": result["department"] if "department" in result else "MSFEA Advisor"
-            }
-        elif department == "Mechanical Engineering (MECH)":
-            result = mechanical_department(state)
-            content = extract_content_from_llm_response(result)
-            print(f"Department Handler Result: {result}")
-            print(f"Extracted Content: {content}")
-            return {
-                "content": content,
-                "department": result["department"] if "department" in result else "MSFEA Advisor"
-            }
-        elif department == "Civil and Environmental Engineering (CEE)":
-            result = civil_department(state)
-            content = extract_content_from_llm_response(result)
-            print(f"Department Handler Result: {result}")
-            print(f"Extracted Content: {content}")
-            return {
-                "content": content,
-                "department": result["department"] if "department" in result else "MSFEA Advisor"
-            }
-        elif department == "Electrical and Computer Engineering (ECE)":
-            result = ece_department(state)
-            content = extract_content_from_llm_response(result)
-            print(f"Department Handler Result: {result}")
-            print(f"Extracted Content: {content}")
-            return {
-                "content": content,
-                "department": result["department"] if "department" in result else "MSFEA Advisor"
-            }
-        elif department == "Industrial Engineering and Management (ENMG)":
-            result = industrial_department(state)
-            content = extract_content_from_llm_response(result)
-            print(f"Department Handler Result: {result}")
-            print(f"Extracted Content: {content}")
-            return {
-                "content": content,
-                "department": result["department"] if "department" in result else "MSFEA Advisor"
-            }
-        else:
-            # Use the MSFEA advisor for general queries
-            result = msfea_advisor(state)
-            content = extract_content_from_llm_response(result)
-            print(f"Department Handler Result: {result}")
-            print(f"Extracted Content: {content}")
-            return {
-                "content": content,
-                "department": result["department"] if "department" in result else "MSFEA Advisor"
-            }
-    except Exception as e:
-        logger.error(f"Error in process_query: {str(e)}", exc_info=True)
-        return {
-            "content": "I apologize, but I encountered an error while processing your question. Please try again or ask something different.",
-            "department": "MSFEA Advisor"
+        # Create the initial state
+        state = {
+            "messages": [{"role": "user", "content": query_text}],
+            "is_valid": True,
         }
+        
+        # Execute the graph and capture path information
+        result = graph.invoke(state)
+        
+        # Extract the response content
+        if "messages" in result and len(result["messages"]) > 0:
+            response_content = result["messages"][-1].content
+        else:
+            response_content = "I'm sorry, I couldn't process your request."
+        
+        # Get the routing path (IMPORTANT ADDITION)
+        path = result.get("path", [])
+        department = determine_department_from_path(path)
+        
+        # Create response with path info
+        return QueryResponse(
+            content=response_content,
+            department=department,
+            status="success"
+        )
+    except Exception as e:
+        logger.error(f"Error processing query: {str(e)}")
+        return QueryResponse(
+            content=f"I apologize, but an error occurred: {str(e)}",
+            department="Error Handler"
+        )
 
 def extract_content_from_llm_response(result):
     """Extract content from LLM response"""
@@ -180,9 +143,9 @@ def build_graph():
         "ece",
         route_to_ece_track,
         {
-            "CSE": "cse",
-            "CCE": "cce",
-            "ECE": "ece_track"
+            "cse": "cse",
+            "cce": "cce",
+            "ece_track": "ece_track"
         }
     )
     
@@ -238,3 +201,54 @@ def industrial_department_handler(text):
 def msfea_advisor_handler(text):
     """Basic handler for general MSFEA queries"""
     return f"Thank you for your question about '{text}'. MSFEA houses 7 departments: Architecture and Design (ARCH), Biomedical Engineering (BMEN), Civil and Environmental Engineering (CEE), Chemical Engineering (CHEE), Electrical and Computer Engineering (ECE), Industrial Engineering (ENMG), and Mechanical Engineering (MECH). All departments offer accredited undergraduate and graduate programs."
+
+def get_department_from_result(result):
+    """Extract the department that handled the query from the result"""
+    # Default department
+    department = "MSFEA Advisor"
+    
+    # Check each department's name in the result path
+    if "chemical" in result.get("path", []):
+        department = "Chemical Engineering"
+    elif "mechanical" in result.get("path", []):
+        department = "Mechanical Engineering" 
+    elif "civil" in result.get("path", []):
+        department = "Civil Engineering"
+    elif "ece" in result.get("path", []):
+        department = "Electrical & Computer"
+    elif "cse" in result.get("path", []):
+        department = "Computer Science and Engineering"
+    elif "cce" in result.get("path", []):
+        department = "Computer and Communications Engineering"
+    elif "industrial" in result.get("path", []):
+        department = "Industrial Engineering"
+    
+    return department
+
+def determine_department_from_path(path):
+    """Extract department name from the graph execution path"""
+    department = "MSFEA Advisor"  # Default
+    
+    # Map node names to user-friendly department names
+    if not path:
+        return department
+        
+    last_node = path[-1]
+    
+    # Department mapping
+    department_map = {
+        "chemical": "Chemical Engineering",
+        "mechanical": "Mechanical Engineering",
+        "civil": "Civil Engineering",
+        "ece": "Electrical & Computer",
+        "cse": "Computer Science Engineering",
+        "cce": "Computer & Communications Engineering",
+        "industrial": "Industrial Engineering"
+    }
+    
+    # Check for department in path
+    for node in path:
+        if node in department_map:
+            department = department_map[node]
+    
+    return department

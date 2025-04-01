@@ -658,13 +658,16 @@ audio {
 /* System message for department change */
 .system-message {
     text-align: center;
-    padding: 5px 10px;
-    margin: 10px auto;
-    background-color: rgba(0, 113, 188, 0.1);
-    border-radius: 15px;
-    font-size: 12px;
-    max-width: 80%;
-    color: #8a8a8a;
+    color: #a7c7f7;
+    background-color: rgba(30, 30, 50, 0.5);
+    padding: 8px 15px;
+    margin: 12px auto;
+    border-radius: 10px;
+    font-size: 0.9em;
+    max-width: 70%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    font-weight: 500;
+    letter-spacing: 0.2px;
 }
 
 /* Modify the disclaimer text */
@@ -723,4 +726,44 @@ audio {
     font-size: 0.9rem;
     margin: 10px 0;
     font-style: italic;
+}
+
+/* Add or update these CSS rules */
+.active-department {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-left: 3px solid #e74c3c;
+    padding-left: 5px !important;
+    transform: translateX(3px);
+    transition: all 0.3s ease;
+}
+
+.system-message, .notification-message {
+    text-align: center;
+    color: #c9c9c9;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 8px 15px;
+    margin: 12px auto;
+    border-radius: 12px;
+    max-width: 80%;
+    font-size: 0.9em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Make the MECH department visibly active in sidebar */
+.active-department {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-left: 3px solid #e74c3c;
+    padding-left: 5px !important;
+}
+
+/* Add animation for department changes */
+@keyframes highlight-department {
+    0% { background-color: rgba(231, 76, 60, 0.1); }
+    50% { background-color: rgba(231, 76, 60, 0.3); }
+    100% { background-color: rgba(255, 255, 255, 0.15); }
+}
+
+.active-department {
+    animation: highlight-department 1s ease;
+    /* ...other existing styles */
 }

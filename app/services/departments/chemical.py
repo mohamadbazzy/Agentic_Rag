@@ -18,7 +18,7 @@ chemical_vectorstore = get_agent_vectorstore("chemical")
 
 def chemical_department(state: State):
     """Handle queries about the Chemical Engineering department"""
-    user_message = state["messages"][-1]["content"]
+    user_message = state["messages"][-1].content
     query_type = state.get("query_type", "General")
     
     # Always retrieve from chemical's namespace, regardless of passed context
@@ -46,9 +46,10 @@ def chemical_department(state: State):
             logger.warning("No documents found in chemical_namespace, using fallback content")
             context = [{
                 "content": """
-                The Chemical Engineering and Advanced Energy (CHEE) department at AUB offers ABET-accredited BE degrees,
-                as well as ME and PhD programs. The department focuses on chemical processes, petroleum engineering,
-                and advanced energy technologies. Research areas include catalysis, polymers, and sustainable energy.
+                The Chemical Engineering and Advanced Energy (CHEE) department at AUB offers ABET-accredited BE degrees, 
+                as well as ME and PhD programs. Focus areas include process design, petroleum engineering, advanced energy, 
+                thermodynamics, and reaction engineering. The department has strong research programs in energy, sustainability, 
+                and process optimization.
                 """,
                 "source": "fallback_info"
             }]
@@ -56,7 +57,7 @@ def chemical_department(state: State):
         logger.error(f"Error retrieving documents from chemical_namespace: {str(e)}")
         # Use fallback content in case of error
         context = [{
-            "content": "Basic information about Chemical Engineering at AUB's MSFEA faculty.",
+            "content": "The Chemical Engineering and Advanced Energy department offers undergraduate and graduate programs focused on chemical processes, petroleum engineering, and advanced energy technologies.",
             "source": "error_fallback"
         }]
     
@@ -85,7 +86,4 @@ def chemical_department(state: State):
     messages = [{"role": "system", "content": system_message}] + state["messages"]
     response = llm.invoke(messages)
     
-    return {
-        "messages": response,
-        "department": "Chemical Engineering and Advanced Energy (CHEE)"
-    }
+    return {"messages": response}
