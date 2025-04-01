@@ -1,10 +1,7 @@
 // script.js
 
 // Configuration
-const USE_TEST_ENDPOINT = false;
-const API_CHAT_URL = USE_TEST_ENDPOINT 
-    ? "http://localhost:8000/api/advisor/test" 
-    : "http://localhost:8000/api/advisor/query";
+const API_CHAT_URL = "http://localhost:8001/api/advisor/query";
 
 // Elements
 const chatDisplay = document.getElementById('chatDisplay');
@@ -31,6 +28,10 @@ let currentDepartmentIcon = 'images/msfea_logo.png';
 
 // Variable for the "Thinking..." animation
 let thinkingInterval;
+
+// At the top of your script, add a variable to track the return timeout
+let returnToMsfeaTimeout;
+let lastReturnTime = 0;
 
 // Department data
 const departments = [
@@ -72,6 +73,50 @@ const departments = [
     }
 ];
 
+// Department mapping to ensure consistent naming
+const departmentMap = {
+    "MSFEA Advisor": { 
+        name: "MSFEA Advisor", 
+        icon: 'images/msfea_logo.png',
+        displayName: "MSFEA Advisor" 
+    },
+    "Chemical Engineering": { 
+        name: "Chemical Engineering", 
+        icon: 'images/department_icons/chemical.png',
+        displayName: "Chemical Engineering"
+    },
+    "Mechanical Engineering": { 
+        name: "Mechanical Engineering", 
+        icon: 'images/department_icons/mechanical.png',
+        displayName: "Mechanical Engineering"
+    },
+    "Civil Engineering": { 
+        name: "Civil Engineering", 
+        icon: 'images/department_icons/civil.png',
+        displayName: "Civil Engineering"
+    },
+    "Electrical & Computer": { 
+        name: "Electrical & Computer", 
+        icon: 'images/department_icons/ece.png',
+        displayName: "Electrical & Computer"
+    },
+    "Computer Science Engineering": { 
+        name: "Computer Science Engineering", 
+        icon: 'images/department_icons/ece.png',
+        displayName: "CSE"
+    },
+    "Computer & Communications Engineering": { 
+        name: "Computer & Communications Engineering", 
+        icon: 'images/department_icons/ece.png',
+        displayName: "CCE"
+    },
+    "Industrial Engineering": { 
+        name: "Industrial Engineering", 
+        icon: 'images/department_icons/industrial.png',
+        displayName: "Industrial Engineering"
+    }
+};
+
 // Initial Chat State
 let messages = [
     { 
@@ -108,8 +153,12 @@ function populateDepartmentList() {
     // Add each department as a non-interactive element
     departments.forEach(dept => {
         const deptElement = document.createElement('div');
-        deptElement.className = 'department-item' + 
-            (dept.name === currentDepartment ? ' active-department' : '');
+        
+        // Apply active class if this is the current department
+        const isActive = dept.name === currentDepartment;
+        deptElement.className = 'department-item' + (isActive ? ' active-department' : '');
+        
+        console.log(`Department: ${dept.name}, Current: ${currentDepartment}, Active: ${isActive}`);
         
         // Create department content with icon and name
         deptElement.innerHTML = `
@@ -165,6 +214,24 @@ function renderMessages() {
             notificationDiv.className = 'notification-message';
             notificationDiv.textContent = message.content;
             chatDisplay.appendChild(notificationDiv);
+        } else if (message.isSystem) {
+            // System Message (department change) - NEW STYLING
+            const systemContainer = document.createElement('div');
+            systemContainer.className = 'system-message';
+            
+            // Style it properly
+            systemContainer.style.textAlign = 'center';
+            systemContainer.style.color = '#a7c7f7';
+            systemContainer.style.backgroundColor = 'rgba(30, 30, 50, 0.5)';
+            systemContainer.style.padding = '8px 15px';
+            systemContainer.style.margin = '12px auto';
+            systemContainer.style.borderRadius = '10px';
+            systemContainer.style.fontSize = '0.9em';
+            systemContainer.style.maxWidth = '70%';
+            systemContainer.style.boxShadow = '0 1px 2px rgba(0,0,0,0.2)';
+            
+            systemContainer.textContent = message.content;
+            chatDisplay.appendChild(systemContainer);
         } else if (message.role === "user") {
             // User Message
             const userContainer = document.createElement('div');
@@ -182,12 +249,6 @@ function renderMessages() {
             userContainer.appendChild(chatContent);
             userContainer.appendChild(userIcon);
             chatDisplay.appendChild(userContainer);
-        } else if (message.isSystem) {
-            // System Message (department change)
-            const systemContainer = document.createElement('div');
-            systemContainer.className = 'system-message';
-            systemContainer.textContent = message.content;
-            chatDisplay.appendChild(systemContainer);
         } else {
             // Bot/Advisor Message
             const botContainer = document.createElement('div');
@@ -205,8 +266,22 @@ function renderMessages() {
             const chatContent = document.createElement('div');
             chatContent.className = 'chat-content bot-bubble chat-bubble';
             
-            const departmentName = message.department || currentDepartment;
-            chatContent.innerHTML = `<span class="sender-label">${sanitize(departmentName)}:</span> <span class="message-text">${formatMarkdown(sanitize(message.content)).replace(/\n/g, '<br>')}</span>`;
+            const senderName = message.department || "MSFEA Advisor";
+            
+            // Create a custom label for debugging
+            console.log(`Rendering message with department: ${senderName}`);
+            
+            // Directly add a new span for the sender label
+            const senderLabel = document.createElement('span');
+            senderLabel.className = 'sender-label';
+            senderLabel.textContent = `${senderName}:`;
+            
+            const messageText = document.createElement('span');
+            messageText.className = 'message-text';
+            messageText.innerHTML = formatMarkdown(sanitize(message.content)).replace(/\n/g, '<br>');
+            
+            chatContent.appendChild(senderLabel);
+            chatContent.appendChild(messageText);
             
             botContainer.appendChild(botIcon);
             botContainer.appendChild(chatContent);
@@ -220,6 +295,23 @@ function renderMessages() {
     // Save messages to localStorage whenever they change
     saveMessagesToLocalStorage();
 }
+
+// Create a mapping for detecting departments from keywords
+const departmentKeywords = {
+    "mechanical": "Mechanical Engineering",
+    "mech": "Mechanical Engineering",
+    "civil": "Civil Engineering",
+    "cee": "Civil Engineering",
+    "electrical": "Electrical & Computer Engineering",
+    "ece": "Electrical & Computer",
+    "computer": "Electrical & Computer",
+    "chemical": "Chemical Engineering",
+    "chee": "Chemical Engineering",
+    "industrial": "Industrial Engineering",
+    "enmg": "Industrial Engineering",
+    "cse": "Computer Science and Engineering",
+    "cce": "Computer and Communications Engineering"
+};
 
 // Function to send user message using Fetch API
 async function sendMessage() {
@@ -264,63 +356,108 @@ async function sendMessage() {
             
             // Stop the "Thinking..." animation
             stopThinkingAnimation();
-            
-            // Remove the "Thinking..." message
             messages.pop();
             
-            // Determine if department changed from previous message
-            let responseDepartment = data.department || currentDepartment;
-            let departmentChanged = responseDepartment !== currentDepartment;
+            // Initialize with default department
+            let responseDepartment = "MSFEA Advisor";
             
-            // If department changed, add a notification message
-            if (departmentChanged) {
-                messages.push({
-                    role: "system",
-                    content: `Switched to ${responseDepartment} advisor.`,
-                    isNotification: true
-                });
-                
-                // Update current department
-                currentDepartment = responseDepartment;
-                currentDepartmentIcon = departments.find(d => d.name === responseDepartment)?.icon || 'images/msfea_logo.png';
-                
-                // Update sidebar to highlight current department
-                populateDepartmentList();
+            // IMPROVED DEPARTMENT DETECTION
+            // 1. First try to get it from the API response
+            if (data.department && data.department !== "MSFEA Advisor") {
+                responseDepartment = data.department;
+                console.log("Using department from API:", responseDepartment);
+            } 
+            // 2. Then try to detect it from the user's query
+            else {
+                const query = userText.toLowerCase();
+                for (const keyword in departmentKeywords) {
+                    if (query.includes(keyword)) {
+                        responseDepartment = departmentKeywords[keyword];
+                        console.log("Detected department from query:", responseDepartment);
+                        break;
+                    }
+                }
             }
             
-            // Append the actual response
-            messages.push({
+            // Set current department for sidebar highlighting
+            if (responseDepartment !== "MSFEA Advisor") {
+                // Update current department variable - THIS IS KEY FOR SIDEBAR
+                currentDepartment = responseDepartment;
+                
+                // Find the matching department icon
+                const deptObj = departments.find(d => d.name === responseDepartment);
+                currentDepartmentIcon = deptObj ? deptObj.icon : 'images/msfea_logo.png';
+                
+                // Update the sidebar to highlight current department
+                populateDepartmentList();
+                console.log("Updated sidebar with active department:", currentDepartment);
+            }
+            
+            // Force ALL bot messages to use the detected department
+            const botMessage = {
                 role: "bot",
                 content: data.content || "No content available",
                 department: responseDepartment,
-                departmentIcon: currentDepartmentIcon
-            });
+                departmentIcon: 'images/department_icons/' + 
+                               (responseDepartment === "MSFEA Advisor" ? 
+                                "msfea_logo.png" : responseDepartment.toLowerCase().replace(/ /g, "_") + ".png")
+            };
             
+            console.log("Created message with department:", botMessage.department);
+            messages.push(botMessage);
+            
+            // Add department switching notification if needed
+            if (responseDepartment !== "MSFEA Advisor") {
+                // Insert system message BEFORE the bot response
+                messages.splice(messages.length-1, 0, {
+                    role: "system",
+                    isSystem: true,
+                    content: `→ Switched to ${responseDepartment} advisor`
+                });
+            }
+            
+            // Render all messages
             renderMessages();
             
-            // NEW CODE: Reset to MSFEA Advisor for next query
-            // Wait a short delay so user can see which department answered
-            setTimeout(() => {
-                // Only reset if we're not already on MSFEA Advisor
-                if (currentDepartment !== "MSFEA Advisor") {
-                    // Add notification for switching back
+            // Return to MSFEA Advisor after delay if switched
+            if (responseDepartment !== "MSFEA Advisor") {
+                // Clear any existing timeout
+                if (returnToMsfeaTimeout) {
+                    clearTimeout(returnToMsfeaTimeout);
+                    returnToMsfeaTimeout = null;
+                }
+                
+                // Set the new timeout
+                returnToMsfeaTimeout = setTimeout(() => {
+                    // Prevent duplicate return messages within 5 seconds
+                    const now = Date.now();
+                    if (now - lastReturnTime < 5000) {
+                        console.log("Skipping duplicate return message");
+                        return;
+                    }
+                    
+                    // Track when we added a return message
+                    lastReturnTime = now;
+                    
+                    // Remove any existing return messages first
+                    messages = messages.filter(msg => 
+                        !(msg.isSystem && msg.content.includes("Returned to MSFEA"))
+                    );
+                    
+                    // Add the return message
                     messages.push({
                         role: "system",
-                        content: "Switched back to MSFEA Advisor for next query.",
-                        isNotification: true
+                        isSystem: true,
+                        content: `← Returned to MSFEA Advisor`
                     });
                     
-                    // Update the current department
                     currentDepartment = "MSFEA Advisor";
                     currentDepartmentIcon = departments.find(d => d.name === "MSFEA Advisor")?.icon || 'images/msfea_logo.png';
                     
-                    // Update the sidebar
                     populateDepartmentList();
-                    
-                    // Re-render messages to show the notification
                     renderMessages();
-                }
-            }, 500); // 500ms delay
+                }, 2000);
+            }
         } else {
             handleApiError("The server returned an error.");
         }
