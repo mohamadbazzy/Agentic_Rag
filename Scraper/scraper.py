@@ -461,7 +461,7 @@ def main():
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         
         # Save to JSON file
-        output_file = Path(output_dir) / f"aub_courses_{term_to_use}.json"
+        output_file = Path(output_dir) / "courses.json"
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(output_data, f, indent=2, ensure_ascii=False)
         

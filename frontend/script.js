@@ -1,7 +1,7 @@
 // script.js
 
 // Configuration
-const API_CHAT_URL = "http://localhost:8001/api/advisor/query";
+const API_CHAT_URL = "http://localhost:8000/api/advisor/query";
 
 // Elements
 const chatDisplay = document.getElementById('chatDisplay');

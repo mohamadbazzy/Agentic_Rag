@@ -49,6 +49,7 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+      - ./Scraper/output:/app/Scraper/output
     networks:
       - app-network
     restart: unless-stopped
@@ -62,16 +63,31 @@ services:
     depends_on:
       - backend
     volumes:
-      - ./Scraper/output:/app/output
+      - ./Scraper/output:/app/Scraper/output
       - ./Scraper/logs:/app/logs
     networks:
       - app-network
-    # Run periodically or on demand
-    # command: ["python", "scrape.py"]
-    # Uncomment if you want it to run periodically
+    command: ["--output-dir", "/app/Scraper/output"]
     deploy:
        restart_policy:
          condition: none
+         
+
+  # WhatsApp service
+  whatsapp:
+    build:
+      context: .
+      dockerfile: docker/whatsapp/Dockerfile
+    env_file: .env
+    ports:
+      - "8001:8000"  # Use a different port to avoid conflict with backend
+    volumes:
+      - ./Scraper/output:/app/Scraper/output
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
 
 networks:
   app-network:
