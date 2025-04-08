@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MSFEA Academic Advisor</title>
+    <link rel="icon" href="images/aub_logo.png" type="image/png">
+    <link rel="stylesheet" href="styles.css?v=1.2.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- AUB Header -->
+    <header class="aub-header">
+        <div class="aub-header-container">
+            <div class="aub-logo">
+                <img src="images/aub_logo.png" alt="AUB Logo">
+            </div>
+            <div class="aub-header-title">
+                <h1>MSFEA Academic Advisor</h1>
+            </div>
+        </div>
+    </header>
+
+    <!-- Top Buttons (Language Toggle and Reset) -->
+    <div class="top-buttons">
+        <button id="resetButton" aria-label="Reset Advisor">
+            <i class="fas fa-sync-alt"></i> Reset
+        </button>
+        <button id="languageToggle" aria-label="Toggle Language">
+            <span id="languageLabel">En</span>
+        </button>
+    </div>
+
+    <!-- Sidebar Toggle Button -->
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Open Sidebar">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar with Departments -->
+    <div class="sidebar" id="sidebar">
+        <button class="close-sidebar" id="closeSidebar" aria-label="Close Sidebar">
+            <i class="fas fa-times"></i>
+        </button>
+        <img src="images/aub_logo.png" alt="AUB Logo" class="sidebar-logo">
+        <h2>MSFEA Advisor</h2>
+        <p>Your academic guidance assistant</p>
+        
+        <!-- Department Selection -->
+        <div class="departments-section">
+            <h3>Departments</h3>
+            <div class="department-list" id="departmentList">
+                <!-- Will be populated via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-container">
+        <div class="chat-display" id="chatDisplay">
+            <!-- Initial Advisor Message and welcome suggestions will be populated via JavaScript -->
+        </div>
+    </div>
+
+    <!-- Fixed Input Container -->
+    <div class="fixed-input-container">
+        <input type="text" id="userInput" placeholder="Ask about programs, courses, departments..." autocomplete="off">
+        
+        <!-- Send Button -->
+        <button id="sendButton" aria-label="Send Message">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+
+    <!-- Input Disclaimer - now hidden via CSS -->
+    <div class="input-disclaimer">
+        AUB MSFEA Academic Advisor is an AI assistant. For official guidance, please consult with faculty advisors.
+    </div>
+
+    <!-- Footer -->
+    <footer class="aub-footer">
+        <div class="footer-content">
+            <p>AUB MSFEA Academic Advisor is an AI assistant. For official guidance, please consult with faculty advisors.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html> 

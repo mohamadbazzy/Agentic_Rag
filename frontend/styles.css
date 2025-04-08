@@ -1,8 +1,24 @@
+:root {
+    --aub-primary: #840132;      /* AUB Red/Burgundy Primary */
+    --aub-secondary: #434444;    /* AUB Dark Gray */
+    --aub-accent: #E7231F;       /* AUB Bright Red Accent */
+    --aub-light: #f4f4f4;        /* Light Background */
+    --aub-dark: #424242;         /* Dark Text Color */
+    --aub-cream: #fff;           /* White for backgrounds */
+    --aub-gray: #737373;         /* Gray for secondary text */
+    --aub-blue: #0072C6;         /* AUB Blue for links */
+    --aub-success: #3E9B4F;      /* Green for success messages */
+    --aub-warning: #F4C64A;      /* Yellow for warnings */
+    --chat-radius: 20px;         /* Consistent border radius */
+    --default-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --user-bubble: var(--aub-primary);
+}
+
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background-color: #0E1117;
-    color: #f1f1f1;
+    font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--aub-light);
+    color: var(--aub-dark);
     display: flex;
     height: 100vh;
     overflow: hidden;
@@ -12,23 +28,33 @@ body {
 /* Sidebar Toggle Button */
 .sidebar-toggle {
     position: fixed;
-    top: 10px;
-    left: 10px;
+    top: 15px;
+    left: 15px;
     background-color: transparent;
     border: none;
     cursor: pointer;
     z-index: 1002;
+    transition: all 0.2s ease;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background-color: white;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.toggle-icon {
-    width: 30px;
-    height: 30px;
+.sidebar-toggle .fa-bars {
+    font-size: 18px;
+    color: var(--aub-primary);
 }
 
-/* Sidebar Styles (Left-Aligned and Collapsible) */
+/* Sidebar Styles */
 .sidebar {
-    background-color: #262730;
-    width: 250px;
+    background-color: var(--aub-primary);
+    background-image: linear-gradient(135deg, var(--aub-primary) 0%, #5c0022 100%);
+    width: 280px;
     padding: 20px;
     box-sizing: border-box;
     display: flex;
@@ -38,12 +64,15 @@ body {
     top: 0;
     left: 0;
     height: 100%;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
     z-index: 1001;
+    box-shadow: var(--default-shadow);
+    overflow-y: auto;
 }
 
 .sidebar.closed {
-    transform: translateX(-250px); /* Hide the sidebar */
+    transform: translateX(-280px);
+    box-shadow: none;
 }
 
 .close-sidebar {
@@ -51,43 +80,135 @@ body {
     background-color: transparent;
     border: none;
     cursor: pointer;
+    color: white;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.close-icon {
-    width: 24px;
-    height: 24px;
+.close-sidebar .fa-times {
+    font-size: 18px;
+    color: white;
+}
+
+.close-sidebar:hover {
+    opacity: 1;
 }
 
 .sidebar-logo {
     max-width: 80%;
     height: auto;
-    margin: 20px 0;
+    margin: 20px auto;
+    display: block;
+    filter: brightness(0) invert(1); /* Make the logo white */
+    max-height: 100px;
 }
 
 .sidebar h2 {
-    margin: 10px 0 5px 0;
+    margin: 5px 0;
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
 .sidebar p {
     text-align: center;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 0;
+    font-size: 14px;
 }
 
-/* Chat Display Area */
+/* AUB Header */
+.aub-header {
+    background-color: var(--aub-primary);
+    color: white;
+    padding: 15px 0;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.aub-header-container {
+    display: flex;
+    align-items: center;
+    padding: 0 30px 0 320px; /* Adjusted for sidebar width */
+    transition: padding 0.3s ease;
+}
+
+.sidebar.closed ~ .aub-header .aub-header-container {
+    padding-left: 80px;
+}
+
+.aub-logo {
+    height: 50px;
+    margin-right: 20px;
+}
+
+.aub-logo img {
+    height: 100%;
+    width: auto;
+}
+
+.aub-header-title h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 500;
+}
+
+/* Footer */
+.aub-footer {
+    background-color: var(--aub-dark);
+    color: white;
+    text-align: center;
+    padding: 15px;
+    font-size: 14px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 997; /* Ensure proper stacking order */
+}
+
+.footer-content p {
+    margin: 0;
+}
+
+/* Adjust Main Container */
+.main-container {
+    display: flex;
+    flex: 1;
+    margin-top: 80px; /* Account for header height */
+    margin-bottom: 150px; /* Increased to provide more space */
+    position: relative;
+    width: 100%;
+}
+
+/* Chat Display Area (Updated) */
 .chat-display {
     flex: 1;
-    padding: 20px;
+    padding: 30px 30px 80px 30px; /* Increased bottom padding */
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    margin-left: 250px; /* Width of the sidebar */
-    transition: margin-left 0.3s ease;
-    margin-bottom: 100px; /* Reduced bottom margin for input box and disclaimer */
+    margin-left: 280px;
+    transition: margin-left 0.3s ease, background-color 0.3s ease;
+    height: calc(100vh - 250px); /* Increased space at the bottom */
+    background-color: var(--aub-light);
+    max-height: 100%;
+    scroll-behavior: smooth;
 }
 
-.sidebar.closed ~ .chat-display {
-    margin-left: 0; /* Remove margin when sidebar is closed */
-    margin-bottom: 100px; /* Ensure the margin is still there for disclaimer */
+.sidebar.closed ~ .main-container .chat-display {
+    margin-left: 0;
 }
 
 /* Chat Container */
@@ -95,8 +216,8 @@ body {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    margin-bottom: 10px;
-    transition: all 0.3s ease; /* Smooth transitions to prevent twitching */
+    margin-bottom: 25px;
+    transition: all 0.3s ease;
 }
 
 /* Bot Chat Container */
@@ -111,12 +232,53 @@ body {
 
 /* Message Icons */
 .message-icon {
-    width: 70px;
-    height: 70px;
-    margin: 10px;
-    object-fit: contain; 
-    border-radius: 50%;
+    width: 90px;
+    height: 90px;
+    margin: 5px 15px;
+    object-fit: contain;
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
+    background-color: transparent;
+    flex-shrink: 0; /* Prevent icon from shrinking */
 }
+
+/* Chat Content and Bubbles */
+.chat-content {
+    flex: 1;
+    max-width: 70%;
+}
+
+/* Chat Bubbles */
+.chat-bubble {
+    border-radius: var(--chat-radius);
+    padding: 15px 20px;
+    display: inline-block;
+    position: relative;
+    font-size: 16px;
+    line-height: 1.6;
+    word-wrap: break-word;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.bot-bubble {
+    background-color: white;
+    color: var(--aub-dark);
+    text-align: left;
+    margin-left: 10px;
+    border-bottom-left-radius: 5px;
+    border-left: 3px solid var(--aub-accent);
+}
+
+.user-bubble {
+    background-color: var(--aub-primary);
+    color: white;
+    text-align: left;
+    margin-right: 10px;
+    border-bottom-right-radius: 5px;
+}
+
 /* Prevent layout containers from changing direction */
 .sidebar,
 .chat-display,
@@ -127,33 +289,7 @@ body {
 #languageToggle {
     direction: ltr;
 }
-/* Chat Bubbles */
-.chat-bubble {
-    border-radius: 15px;
-    padding: 10px;
-    max-width: 65%;
-    display: inline-block;
-    position: relative;
-    font-size: 16px; /* Increased font size */
-    line-height: 1.6; /* Adjust line height for more spacing between lines */
-    word-wrap: break-word;
-    
-}
 
-.bot-bubble {
-    background-color: #262730;
-    color: #fff;
-    text-align: left;
-    margin-left: 10px; /* Space between icon and bubble */
-}
-
-.user-bubble {
-    background-color: var(--user-bubble);
-    color: #fff;
-    text-align: right;
-    margin-left: auto;
-    margin-right: 10px; /* Space between bubble and icon */
-}
 /* Prevent icons from flipping */
 .sidebar-toggle img,
 .close-sidebar img,
@@ -162,255 +298,381 @@ body {
 #recordButton .record-icon {
     transform: none;
 }
+
 /* Sender Label */
 .sender-label {
-    font-weight: bold;
+    font-weight: 600;
     font-size: 0.9em;
-    margin-bottom: 3px;
+    margin-bottom: 5px;
     display: block;
+    color: var(--aub-secondary);
 }
 
-/* Image Name Display Box */
-.image-name-box {
-    position: fixed;
-    bottom: 80px; /* Positioned just above the input container */
-    left: 250px; /* Width of the sidebar */
-    right: 0;
-    background-color: #262730;
-    color: #f1f1f1;
-    padding: 10px 15px;
-    border-radius: 5px;
-    z-index: 1001;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-    max-height: 50px; /* Adjust as needed */
-    overflow: hidden;
-    box-sizing: border-box;
-    width: calc(100% - 270px); /* Adjust to match input field */
+/* User message sender label - make it white */
+.user-bubble .sender-label {
+    color: white;
+    opacity: 0.9;
 }
 
-/* Remove Image Button */
-#removeImageButton {
-    background-color: #8B0000; /* Dark red color */
-    border: none;
-    color: #f1f1f1; /* White color for visibility */
-    font-size: 16px;
-    cursor: pointer;
-    padding: 5px;
-    margin-left: 10px;
-    border-radius: 3px;
+/* Enhanced Department Switch Notice */
+.system-message {
+    text-align: center;
+    margin: 15px auto;
+    font-size: 14px;
+    color: white;
+    background-color: var(--aub-primary);
+    padding: 8px 15px;
+    border-radius: 30px;
+    max-width: 70%;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    transform: translateY(0);
+    animation: fadeSlideIn 0.5s ease-out;
+    border-left: 4px solid var(--aub-accent);
+    border-right: 4px solid var(--aub-accent);
+    font-weight: 500;
 }
 
-/* Fixed Input Container */
+/* Animation for system messages */
+@keyframes fadeSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Animation for the active department pulse */
+@keyframes highlight-department {
+    0% { background-color: rgba(255, 255, 255, 0.2); }
+    50% { background-color: rgba(231, 35, 31, 0.3); }
+    100% { background-color: rgba(255, 255, 255, 0.2); }
+}
+
+.active-department {
+    animation: highlight-department 2s ease 1;
+    border-left: 4px solid var(--aub-accent);
+}
+
+/* Enhanced Input Area */
 .fixed-input-container {
     position: fixed;
-    bottom: 30px; /* Reduced bottom margin to make space tighter */
-    left: 250px; /* Width of the sidebar */
+    bottom: 45px; /* Position just above footer */
+    left: 280px;
     right: 0;
-    background-color: #0E1117;
-    padding: 10px 15px;
-    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    padding: 15px 20px;
+    background-color: white;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     z-index: 1000;
     transition: left 0.3s ease;
+    box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.08);
 }
 
 .sidebar.closed ~ .fixed-input-container {
-    left: 0; /* Shift input container when sidebar is closed */
+    left: 0;
 }
 
 .fixed-input-container input {
     flex-grow: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 5px;
-    font-size: 14px;
-    background-color: #262730; /* Same as chatbox */
-    color: #f1f1f1; /* Text color */
+    padding: 14px 20px;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    font-size: 15px;
+    background-color: var(--aub-cream);
+    color: var(--aub-dark);
+    transition: all 0.3s ease;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
-/* Top Buttons Container */
+
+.fixed-input-container input:focus {
+    outline: none;
+    border-color: var(--aub-primary);
+    box-shadow: 0 0 0 3px rgba(132, 1, 50, 0.2);
+    transform: translateY(-2px);
+}
+
+.fixed-input-container input::placeholder {
+    color: var(--aub-gray);
+    opacity: 0.7;
+}
+
+/* Enhanced Send Button */
+#sendButton {
+    background-color: var(--aub-primary);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    width: 50px;
+    height: 50px;
+    margin-left: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+#sendButton:hover {
+    background-color: var(--aub-accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Top Buttons Adjustments */
 .top-buttons {
     position: fixed;
-    top: 10px;
-    right: 10px;
+    top: 15px;
+    right: 20px;
     display: flex;
-    gap: 20px;
-    z-index: 1002; /* Ensure it appears above other elements */
+    gap: 10px;
+    z-index: 1003;
 }
 
 /* Language Toggle Button */
 #languageToggle {
-    padding: 10px;
-    background-color: #262730;
-    border: none;
+    background-color: white;
+    color: var(--aub-primary);
+    border: 1px solid var(--aub-primary);
+    padding: 8px 15px;
     border-radius: 5px;
-    color: #f1f1f1;
-    font-size: 16px;
     cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 #languageToggle:hover {
-    background-color: #333;
-}
-
-#languageToggle:focus {
-    outline: none;
+    background-color: var(--aub-primary);
+    color: white;
 }
 
 /* Reset Button */
 #resetButton {
-   position: fixed;
-    right: 55px;
-    padding: 10px;
-    background-color: #262730;
-    border: none;
+    background-color: white;
+    color: var(--aub-primary);
+    border: 1px solid var(--aub-primary);
+    padding: 8px 15px;
     border-radius: 5px;
-    color: #f1f1f1;
-    font-size: 16px;
     cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
 }
 
 #resetButton:hover {
-    background-color: #333;
+    background-color: var(--aub-primary);
+    color: white;
 }
 
-#resetButton:focus {
-    outline: none;
+/* Input Disclaimer (Updated) */
+.input-disclaimer {
+    display: none;
 }
 
-/* Reset Icon (if using an image) */
-.reset-icon {
-    width: 20px;
-    height: 20px;
+/* Departments Section */
+.departments-section {
+    width: 100%;
+    margin-top: 20px;
 }
 
-.fixed-input-container input::placeholder {
-    color: #b3b3b3; /* Placeholder text color */
+.departments-section h3 {
+    color: white;
+    font-size: 18px;
+    margin: 15px 0 10px 10px;
+    font-weight: 500;
 }
 
-.fixed-input-container button {
-    margin-left: 10px;
-    padding: 10px;
-    background-color: transparent;
-    border: none;
+.department-list {
+    width: 100%;
+}
+
+.department-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 12px;
     cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.department-item:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+.department-item.active-department {
+    background-color: rgba(255, 255, 255, 0.2);
     position: relative;
 }
 
-.send-icon, .attach-icon {
-    width: 24px;
-    height: 24px;
-}
-
-/* Adjust the attach-icon class to display the emoji properly */
-.attach-icon {
-    font-size: 24px;
-    line-height: 1;
-}
-
-/* File Attached Indicator */
-#attachButton.file-attached .attach-icon {
-    color: #FFD700; /* Gold color */
-}
-
-/* Upload Indicator */
-.upload-indicator {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background-color: #262730;
-    color: #f1f1f1;
-    padding: 15px;
+.department-item.active-department::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: var(--aub-accent);
     border-radius: 5px;
-    z-index: 1002;
-    font-size: 14px;
-    display: none; /* Initially hidden */
-    width: 300px; /* Adjust the width as needed */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Progress Container */
-.progress-container {
-    background-color: #444;
-    border-radius: 5px;
-    overflow: hidden;
-    height: 20px;
-    margin-top: 10px;
+/* Department Icons - Made larger to match chat icons */
+.department-icon {
+    width: 70px;
+    height: 70px;
+    margin-right: 12px;
+    border-radius: 0;
+    object-fit: contain;
+    background-color: transparent;
+    padding: 0;
+    filter: none; /* Remove the whitening filter */
 }
 
-/* Progress Bar */
-.progress-bar {
-    height: 100%;
-    width: 0%;
-    background-color: #831434;
-    text-align: center;
-    line-height: 20px; /* Vertically center the text */
+.department-details {
+    flex: 1;
+}
+
+.department-name {
+    font-weight: 500;
+    margin-bottom: 2px;
     color: white;
-    transition: width 0.4s ease;
-    border-radius: 5px 0 0 5px;
 }
 
-/* Image Attachment Styling */
-.image-attachment {
-    max-width: 200px;
-    max-height: 200px;
-    margin-top: 10px;
-    border-radius: 5px;
+.department-desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
 }
 
-/* Image Name Display Box Adjustments */
-.image-name-box {
-    position: fixed;
-    bottom: 92px; /* Positioned just above the input container */
-    left: 250px; /* Width of the sidebar */
-    right: 0;
-    background-color: #262730;
-    color: #f1f1f1;
-    padding: 10px 15px;
-    border-radius: 5px;
-    z-index: 1001;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-    max-height: 50px; /* Adjust as needed */
-    overflow: hidden;
-    box-sizing: border-box;
-    width: calc(100% - 270px); /* Adjust to match input field */
-}
-
-/* Adjust for Sidebar Closed State */
-.sidebar.closed ~ .image-name-box {
-    left: 20px; /* Adjusted to provide margin from the edge */
-    right: 20px;
-    width: calc(100% - 40px); /* Adjust to match input field */
-}
-
-/* Input Disclaimer */
-.input-disclaimer {
-    position: fixed;
-    bottom: 0; /* Fixed at the bottom of the page */
-    left: 250px; /* Width of the sidebar */
-    right: 0;
-    padding: 5px 0;
-    background-color: #0E1117;
-    color: #D3D3D3;
-    font-size: 0.8em;
+/* Welcome Suggestions */
+.welcome-suggestions {
     text-align: center;
-    z-index: 1000; /* Same as the input container */
-    width: calc(100% - 250px);
-    transition: left 0.3s ease;
-    font-style: italic;
+    margin: 40px 0;
+    background-color: white;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+    border-top: 4px solid var(--aub-primary);
 }
 
-.sidebar.closed ~ .input-disclaimer {
-    left: 0; /* Shift disclaimer when sidebar is closed */
-    width: 100%;
+.welcome-suggestions h3 {
+    color: var(--aub-primary);
+    font-size: 22px;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-weight: 500;
+}
+
+.suggestion-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.suggestion-buttons button {
+    background-color: white;
+    border: 1px solid var(--aub-gray);
+    padding: 12px 20px;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    color: var(--aub-dark);
+}
+
+.suggestion-buttons button:hover {
+    background-color: var(--aub-primary);
+    color: white;
+    border-color: var(--aub-primary);
+}
+
+/* Media Queries (Updated) */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 240px;
+    }
+    
+    .aub-header-container {
+        padding-left: 260px;
+    }
+    
+    .sidebar.closed ~ .aub-header .aub-header-container {
+        padding-left: 60px;
+    }
+    
+    .chat-display {
+        margin-left: 240px;
+        padding: 20px;
+    }
+    
+    .fixed-input-container {
+        left: 240px;
+        bottom: 45px;
+    }
+    
+    .message-icon {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .chat-bubble {
+        max-width: 80%;
+        padding: 12px 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .aub-header-container {
+        padding: 0 15px;
+    }
+    
+    .aub-header-title h1 {
+        font-size: 1.2rem;
+    }
+    
+    .top-buttons {
+        top: 10px;
+        right: 10px;
+    }
+    
+    .message-icon {
+        width: 35px;
+        height: 35px;
+        margin: 5px;
+    }
+    
+    .chat-bubble {
+        max-width: 85%;
+        padding: 10px 15px;
+        font-size: 15px;
+    }
+    
+    .fixed-input-container input {
+        padding: 10px 15px;
+    }
+    
+    .fixed-input-container button {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .welcome-suggestions {
+        padding: 20px;
+    }
 }
 
 /* Scrollbar Styling */
@@ -419,351 +681,69 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: #1e1e1e;
+    background: rgba(0, 0, 0, 0.05);
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: #444;
-    border-radius: 4px;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .sidebar {
-        width: 200px;
-    }
-
-    .chat-display {
-        margin-left: 200px; /* Updated sidebar width */
-    }
-
-    .sidebar.closed ~ .chat-display {
-        margin-left: 0;
-    }
-
-    .fixed-input-container {
-        left: 200px;
-    }
-
-    .sidebar.closed ~ .fixed-input-container {
-        left: 0;
-    }
-
-    .input-disclaimer {
-        left: 200px;
-        width: calc(100% - 200px);
-    }
-
-    .sidebar.closed ~ .input-disclaimer {
-        left: 0;
-        width: 100%;
-    }
-
-    .toggle-icon {
-        width: 25px;
-        height: 25px;
-    }
-
-    .close-icon {
-        width: 20px;
-        height: 20px;
-    }
-
-    .send-icon {
-        width: 20px;
-        height: 20px;
-    }
-
-    .image-name-box {
-        left: 200px; /* Adjust based on new sidebar width */
-        right: 20px;
-        width: calc(100% - 220px); /* Adjust to match input field */
-    }
-
-    .sidebar.closed ~ .image-name-box {
-        left: 20px; /* Adjusted to provide margin from the edge */
-        right: 20px;
-        width: calc(100% - 40px); /* Adjust to match input field */
-    }
-}
-
-/* Image Name Display Box - Ensuring Same Width as Input */
-.image-name-box {
-    width: calc(100% - 270px); /* Adjust to match input field width */
-}
-
-/* Audio Recording Container */
-.audio-recording-container {
-    position: fixed;
-    bottom: 100px; /* Adjust as needed */
-    left: 250px; /* Width of the sidebar */
-    right: 0;
-    background-color: #262730;
-    padding: 15px;
-    z-index: 1001;
-    display: none; /* Hidden by default */
-    flex-direction: column;
-    align-items: center;
-    transition: left 0.3s ease, opacity 0.3s ease;
-}
-
-.sidebar.closed ~ .audio-recording-container {
-    left: 0; /* Shift when sidebar is closed */
-}
-
-.recording-buttons {
-    margin-top: 10px;
-}
-
-.recording-buttons button {
-    margin: 0 5px;
-    padding: 10px 15px;
-    background-color: #831434;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.recording-buttons button:disabled {
-    background-color: #555;
-    cursor: not-allowed;
-}
-
-.recording-buttons button:hover:not(:disabled) {
-    background-color: #a61b42;
-}
-
-/* Waveform Canvas */
-#waveformCanvas {
-    width: 100%;
-    max-width: 600px;
-    height: 100px;
-    background-color: #0E1117;
-    border: 1px solid #444;
-}
-
-/* Recording Indicator */
-.record-icon.recording {
-    color: #FF0000; /* Red color when recording */
-}
-
-/* Audio Player Styling */
-audio {
-    margin-top: 10px;
-    width: 100%;
-    max-width: 300px;
-}
-
-/* Language Toggle Button (Top Right Corner) */
-#languageToggle {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    padding: 10px;
-    background-color: #262730;
-    border: none;
-    border-radius: 5px;
-    color: #f1f1f1;
-    font-size: 16px;
-    cursor: pointer;
-    z-index: 1002; /* Ensure it appears above other elements */
-}
-
-#languageToggle:hover {
-    background-color: #333;
-}
-
-#languageToggle:focus {
-    outline: none;
-}
-
-
-/* Chat Bubbles */
-.chat-bubble {
-    border-radius: 15px;
-    padding: 10px;
-    max-width: 65%;
-    display: inline-block;
-    position: relative;
-    font-size: 16px;
-    line-height: 1.6;
-    word-wrap: break-word;
-}
-
-/* Audio Elements within Chat Bubbles */
-.chat-bubble audio {
-    width: 10cm;
-    margin-top: 5px;
-    outline: none;
-}
-
-/* Change primary color from the red to AUB blue */
-:root {
-    --primary-color: #0071BC; /* AUB blue */
-    --secondary-color: #262730; /* Keep dark bg for elements */
-    --text-color: #f1f1f1;
-    --user-bubble: #0071BC; /* Change from red to blue */
-    --bot-bubble: #262730;
-}
-
-/* Add department styling */
-.departments-section {
-    width: 100%;
-    margin-top: 30px;
-}
-
-.department-list {
-    margin-top: 10px;
-}
-
-.department-item {
-    display: flex;
-    align-items: center;
-    padding: 10px;
-    margin-bottom: 5px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.department-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.department-item.active {
-    background-color: rgba(255, 255, 255, 0.2);
-}
-
-.department-icon {
-    width: 24px;
-    height: 24px;
-    margin-right: 10px;
-}
-
-.department-info {
-    flex: 1;
-}
-
-.department-name {
-    font-weight: bold;
-    font-size: 14px;
-}
-
-.department-description {
-    font-size: 12px;
-    opacity: 0.7;
-}
-
-/* System message for department change */
-.system-message {
-    text-align: center;
-    color: #a7c7f7;
-    background-color: rgba(30, 30, 50, 0.5);
-    padding: 8px 15px;
-    margin: 12px auto;
+    background-color: rgba(0, 0, 0, 0.2);
     border-radius: 10px;
-    font-size: 0.9em;
-    max-width: 70%;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    font-weight: 500;
-    letter-spacing: 0.2px;
 }
 
-/* Modify the disclaimer text */
-.input-disclaimer {
-    font-style: italic;
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.3);
 }
 
-/* Suggested questions styling */
-.welcome-suggestions {
-    text-align: center;
-    background-color: rgba(0, 113, 188, 0.05);
-    border-radius: 15px;
-    padding: 20px;
-    margin: 20px auto;
-    max-width: 90%;
-}
-
-.suggestion-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 15px;
-}
-
-.suggestion-buttons button {
-    background-color: #262730;
-    color: #f1f1f1;
-    border: none;
-    border-radius: 10px;
-    padding: 12px 15px;
-    text-align: left;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.suggestion-buttons button:hover {
-    background-color: rgba(0, 113, 188, 0.4);
-}
-
-/* Add to styles.css */
-@media (max-width: 480px) {
-    .message-icon {
-        width: 50px;
-        height: 50px;
-    }
-    
-    .chat-bubble {
-        max-width: 75%;
-    }
-}
-
-/* Add styling for department switching notification */
-.notification-message {
-    text-align: center;
-    color: #aaa;
-    font-size: 0.9rem;
-    margin: 10px 0;
-    font-style: italic;
-}
-
-/* Add or update these CSS rules */
-.active-department {
-    background-color: rgba(255, 255, 255, 0.15);
-    border-left: 3px solid #e74c3c;
-    padding-left: 5px !important;
-    transform: translateX(3px);
-    transition: all 0.3s ease;
-}
-
+/* System and Notification Messages */
 .system-message, .notification-message {
     text-align: center;
-    color: #c9c9c9;
-    background-color: rgba(255, 255, 255, 0.1);
+    margin: 15px 0;
+    font-size: 14px;
+    color: var(--aub-gray);
+    background-color: rgba(0, 0, 0, 0.03);
     padding: 8px 15px;
-    margin: 12px auto;
-    border-radius: 12px;
+    border-radius: 20px;
     max-width: 80%;
-    font-size: 0.9em;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    margin-left: auto;
+    margin-right: auto;
 }
 
-/* Make the MECH department visibly active in sidebar */
-.active-department {
-    background-color: rgba(255, 255, 255, 0.2);
-    border-left: 3px solid #e74c3c;
-    padding-left: 5px !important;
+.notification-message {
+    background-color: rgba(205, 26, 70, 0.1);
+    color: var(--aub-accent);
+    border: 1px solid rgba(205, 26, 70, 0.2);
 }
 
-/* Add animation for department changes */
-@keyframes highlight-department {
-    0% { background-color: rgba(231, 76, 60, 0.1); }
-    50% { background-color: rgba(231, 76, 60, 0.3); }
-    100% { background-color: rgba(255, 255, 255, 0.15); }
+/* Ensure Font Awesome icons display correctly */
+.fas, .far, .fab {
+    display: inline-block;
+    line-height: 1;
 }
 
-.active-department {
-    animation: highlight-department 1s ease;
-    /* ...other existing styles */
+/* Arrow icon (FontAwesome replacement) */
+#sendButton .fa-paper-plane {
+    font-size: 16px;
+    color: white;
+}
+
+/* Sidebar toggle icon compatibility */
+.sidebar-toggle .fas {
+    font-size: 20px;
+    color: var(--aub-primary);
+}
+
+/* Reset button icon */
+#resetButton .fas {
+    margin-right: 5px;
+}
+
+/* Media adjustments for icons */
+@media (max-width: 768px) {
+    #sendButton .fa-paper-plane {
+        font-size: 14px;
+    }
+}
+
+/* Adjust scrolling for chat content */
+.chat-container:last-child {
+    margin-bottom: 50px; /* Add space after the last message */
 }

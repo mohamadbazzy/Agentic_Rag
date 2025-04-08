@@ -13,7 +13,8 @@ if __name__ == "__main__":
     try:
         # Register namespaces for all department agents
         logger.info("Registering namespaces for department agents...")
-        register_agent_namespaces(DEFAULT_NAMESPACE_CONFIG)
+        for agent_id, namespaces in DEFAULT_NAMESPACE_CONFIG.items():
+            register_agent_namespaces(agent_id, namespaces)
         
         logger.info("Department Agents ready and waiting for queries")
         # Keep the process running

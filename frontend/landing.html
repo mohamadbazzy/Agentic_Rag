@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Welcome to MSFEA Academic Advisor</title>
+    <link rel="icon" href="images/aub_logo.png" type="image/png">
+    <link rel="stylesheet" href="styles.css?v=1.2.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--aub-light);
+            color: var(--aub-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        
+        .landing-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--aub-light);
+        }
+        
+        .landing-header {
+            background-color: var(--aub-primary);
+            padding: 15px 0;
+            color: white;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .landing-logo {
+            max-width: 70px;
+            height: auto;
+            margin-right: 15px;
+        }
+        
+        .landing-header-title {
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+        
+        .landing-main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+        
+        .landing-content {
+            max-width: 800px;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            text-align: center;
+            border-top: 5px solid var(--aub-primary);
+        }
+        
+        .landing-title {
+            font-size: 2.5rem;
+            color: var(--aub-primary);
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .landing-subtitle {
+            font-size: 1.2rem;
+            color: var(--aub-dark);
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .landing-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+        
+        .feature-card {
+            flex: 1;
+            min-width: 200px;
+            max-width: 300px;
+            background-color: var(--aub-light);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            color: var(--aub-primary);
+            margin-bottom: 10px;
+        }
+        
+        .feature-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--aub-dark);
+        }
+        
+        .feature-desc {
+            font-size: 0.9rem;
+            color: var(--aub-gray);
+        }
+        
+        .start-button {
+            background-color: var(--aub-primary);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(132, 1, 50, 0.3);
+        }
+        
+        .start-button:hover {
+            background-color: var(--aub-accent);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(231, 35, 31, 0.4);
+        }
+        
+        .landing-footer {
+            background-color: var(--aub-dark);
+            color: white;
+            text-align: center;
+            padding: 15px;
+            font-size: 14px;
+            margin-top: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .landing-title {
+                font-size: 2rem;
+            }
+            
+            .landing-subtitle {
+                font-size: 1rem;
+            }
+            
+            .landing-content {
+                padding: 30px 20px;
+            }
+            
+            .landing-features {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .feature-card {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="landing-page">
+        <header class="landing-header">
+            <img src="images/aub_logo.png" alt="AUB Logo" class="landing-logo">
+            <div class="landing-header-title">American University of Beirut</div>
+        </header>
+        
+        <main class="landing-main">
+            <div class="landing-content">
+                <h1 class="landing-title">MSFEA Academic Advisor</h1>
+                <p class="landing-subtitle">Welcome to the Maroun Semaan Faculty of Engineering and Architecture's intelligent academic advising assistant. Get instant answers to your academic questions and guidance for your educational journey.</p>
+                
+                <div class="landing-features">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <h3 class="feature-title">Academic Guidance</h3>
+                        <p class="feature-desc">Get information about majors, courses, requirements, and more.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <h3 class="feature-title">Department Info</h3>
+                        <p class="feature-desc">Learn about all MSFEA departments and their specific requirements.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h3 class="feature-title">Instant Answers</h3>
+                        <p class="feature-desc">Ask questions in natural language and get instant responses.</p>
+                    </div>
+                </div>
+                
+                <a href="advisor.html">
+                    <button class="start-button">
+                        Start Advisor <i class="fas fa-arrow-right"></i>
+                    </button>
+                </a>
+            </div>
+        </main>
+        
+        <footer class="landing-footer">
+            <p>AUB MSFEA Academic Advisor is an AI assistant. For official guidance, please consult with faculty advisors.</p>
+        </footer>
+    </div>
+</body>
+</html> 

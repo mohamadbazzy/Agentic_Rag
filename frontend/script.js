@@ -18,6 +18,7 @@ let currentLanguage = 'En'; // Default language is English
 const sidebarToggle = document.getElementById('sidebarToggle');
 const closeSidebarButton = document.getElementById('closeSidebar');
 const sidebar = document.getElementById('sidebar');
+const header = document.querySelector('.aub-header');
 
 // Reset button
 const resetButton = document.getElementById('resetButton');
@@ -215,21 +216,9 @@ function renderMessages() {
             notificationDiv.textContent = message.content;
             chatDisplay.appendChild(notificationDiv);
         } else if (message.isSystem) {
-            // System Message (department change) - NEW STYLING
+            // System Message (department change) - Enhanced system message styling
             const systemContainer = document.createElement('div');
             systemContainer.className = 'system-message';
-            
-            // Style it properly
-            systemContainer.style.textAlign = 'center';
-            systemContainer.style.color = '#a7c7f7';
-            systemContainer.style.backgroundColor = 'rgba(30, 30, 50, 0.5)';
-            systemContainer.style.padding = '8px 15px';
-            systemContainer.style.margin = '12px auto';
-            systemContainer.style.borderRadius = '10px';
-            systemContainer.style.fontSize = '0.9em';
-            systemContainer.style.maxWidth = '70%';
-            systemContainer.style.boxShadow = '0 1px 2px rgba(0,0,0,0.2)';
-            
             systemContainer.textContent = message.content;
             chatDisplay.appendChild(systemContainer);
         } else if (message.role === "user") {
@@ -412,7 +401,7 @@ async function sendMessage() {
                 messages.splice(messages.length-1, 0, {
                     role: "system",
                     isSystem: true,
-                    content: `→ Switched to ${responseDepartment} advisor`
+                    content: `Switched to ${responseDepartment} Department Advisor`
                 });
             }
             
@@ -448,7 +437,7 @@ async function sendMessage() {
                     messages.push({
                         role: "system",
                         isSystem: true,
-                        content: `← Returned to MSFEA Advisor`
+                        content: `Returned to MSFEA General Advisor`
                     });
                     
                     currentDepartment = "MSFEA Advisor";
@@ -566,6 +555,9 @@ function toggleSidebar() {
         sidebarToggle.style.display = 'none';
         closeSidebarButton.style.display = 'block';
     }
+    
+    // Adjust layout based on new sidebar state
+    adjustLayoutForSidebar();
 }
 
 // Event listeners
@@ -606,8 +598,34 @@ languageToggle.addEventListener('click', function() {
 populateDepartmentList();
 renderMessages();
 
-// Hide the sidebar toggle initially (when sidebar is open)
-sidebarToggle.style.display = 'none';
+// Remove this since sidebar now starts open
+// sidebarToggle.style.display = 'none';
+
+// Function to adjust layout based on sidebar state
+function adjustLayoutForSidebar() {
+    const isSidebarClosed = sidebar.classList.contains('closed');
+    
+    // Set appropriate styles for chat display
+    document.querySelector('.chat-display').style.marginLeft = isSidebarClosed ? '0' : '280px';
+    
+    // Set appropriate styles for input container
+    document.querySelector('.fixed-input-container').style.left = isSidebarClosed ? '0' : '280px';
+}
+
+// Adjust layout on page load
+window.addEventListener('load', function() {
+    // Chat area layout adjustment
+    adjustLayoutForSidebar();
+    
+    // Remove any loading indicators or splash screens if needed
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.style.opacity = '0';
+        setTimeout(() => {
+            loadingScreen.style.display = 'none';
+        }, 500);
+    }
+});
 
 // Add this function after sendMessage
 function askSuggestedQuestion(question) {
@@ -621,18 +639,6 @@ document.addEventListener('keydown', function(event) {
     if (event.ctrlKey && event.key === '/') {
         event.preventDefault();
         userInput.focus();
-    }
-});
-
-// Add to beginning of script.js
-window.addEventListener('load', function() {
-    // Remove any loading indicators or splash screens if needed
-    const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) {
-        loadingScreen.style.opacity = '0';
-        setTimeout(() => {
-            loadingScreen.style.display = 'none';
-        }, 500);
     }
 });
 
@@ -653,3 +659,68 @@ document.addEventListener('error', function(e) {
         }
     }
 }, true);
+
+// Set up event listeners and initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the sidebar state - keep it open by default
+    // sidebar.classList.add('closed'); // Removed to keep sidebar open
+    sidebarToggle.style.display = 'none'; // Hide the open button
+    closeSidebarButton.style.display = 'block'; // Show the close button
+    
+    // Adjust header position based on sidebar state
+    if (header) {
+        // Set initial padding for header
+        document.querySelector('.aub-header-container').style.paddingLeft = '320px';
+        
+        sidebar.addEventListener('transitionend', function() {
+            // This ensures the transition is complete before adjusting
+            if (sidebar.classList.contains('closed')) {
+                document.querySelector('.aub-header-container').style.paddingLeft = '80px';
+            } else {
+                document.querySelector('.aub-header-container').style.paddingLeft = '320px';
+            }
+        });
+    }
+
+    // Populate the department list
+    populateDepartmentList();
+    
+    // Render initial messages
+    renderMessages();
+    
+    // Set up input handlers
+    userInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    sendButton.addEventListener('click', sendMessage);
+    
+    // Setup sidebar toggle
+    sidebarToggle.addEventListener('click', toggleSidebar);
+    closeSidebarButton.addEventListener('click', toggleSidebar);
+    
+    // Setup language toggle
+    languageToggle.addEventListener('click', function() {
+        if (currentLanguage === 'En') {
+            currentLanguage = 'Ar';
+            languageLabel.textContent = 'Ar';
+            document.documentElement.setAttribute('dir', 'rtl');
+        } else {
+            currentLanguage = 'En';
+            languageLabel.textContent = 'En';
+            document.documentElement.setAttribute('dir', 'ltr');
+        }
+    });
+    
+    // Setup reset button
+    resetButton.addEventListener('click', resetChatbot);
+    
+    // Make sure the chat display is scrolled to the bottom on initial load
+    scrollToBottom();
+    
+    // Auto-focus the input field for immediate typing
+    userInput.focus();
+});
