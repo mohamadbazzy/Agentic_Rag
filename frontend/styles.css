@@ -747,3 +747,323 @@ body {
 .chat-container:last-child {
     margin-bottom: 50px; /* Add space after the last message */
 }
+
+/* Schedule Wrapper */
+.schedule-wrapper {
+    width: 100%;
+    margin: 10px 0 20px 0;
+    display: flex;
+    justify-content: flex-start;
+}
+
+/* Schedule Template Styles */
+.schedule-container {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 0;
+    margin-left: 120px; /* Align with chat bubble */
+    margin-bottom: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    max-width: 90%;
+}
+
+.schedule-header {
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.schedule-header h3 {
+    margin: 0;
+    color: #1d5f8a;
+    font-size: 1.2rem;
+}
+
+.schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.schedule-table th {
+    background-color: var(--aub-primary);
+    color: white;
+    font-weight: 500;
+    text-align: left;
+    padding: 8px;
+}
+
+.schedule-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+.schedule-table tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.schedule-table tr:hover {
+    background-color: #e5f1f8;
+}
+
+.download-schedule-btn {
+    display: block;
+    margin: 15px auto 0;
+    padding: 8px 16px;
+    background-color: var(--aub-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+}
+
+.download-schedule-btn:hover {
+    background-color: var(--aub-accent);
+}
+
+@media (max-width: 768px) {
+    .schedule-container {
+        margin-left: 60px;
+    }
+    
+    .schedule-table {
+        font-size: 0.8rem;
+    }
+    
+    .schedule-table th, 
+    .schedule-table td {
+        padding: 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .schedule-container {
+        margin-left: 10px;
+        padding: 10px;
+    }
+}
+
+/* Dark mode styles for schedule */
+body.dark-mode .schedule-container {
+    background-color: #2a2a2a;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .schedule-header h3 {
+    color: #7cb9e8;
+}
+
+body.dark-mode .schedule-table th {
+    background-color: var(--aub-primary);
+}
+
+body.dark-mode .schedule-table td {
+    border-color: #444;
+    color: #f0f0f0;
+}
+
+body.dark-mode .schedule-table tr:nth-child(even) {
+    background-color: #333;
+}
+
+body.dark-mode .schedule-table tr:hover {
+    background-color: #3a3a3a;
+}
+
+body.dark-mode .download-schedule-btn {
+    background-color: var(--aub-primary);
+}
+
+body.dark-mode .download-schedule-btn:hover {
+    background-color: var(--aub-accent);
+}
+
+/* Schedule Toggle Buttons */
+.schedule-toggle-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+    gap: 10px;
+}
+
+.schedule-toggle-btn {
+    padding: 8px 16px;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.schedule-toggle-btn.active {
+    background-color: var(--aub-primary);
+    color: white;
+    border-color: var(--aub-primary);
+}
+
+.schedule-toggle-btn:hover:not(.active) {
+    background-color: #e0e0e0;
+}
+
+/* Schedule Views */
+.schedule-view {
+    display: none;
+}
+
+.schedule-view.active {
+    display: block;
+}
+
+/* Timetable Styles */
+.timetable-container {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.timetable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.timetable th {
+    background-color: var(--aub-primary);
+    color: white;
+    font-weight: 500;
+    text-align: center;
+    padding: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.timetable .time-column {
+    width: 80px;
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background-color: var(--aub-primary);
+}
+
+.timetable td {
+    border: 1px solid #ddd;
+    padding: 4px;
+    height: 30px;
+    vertical-align: middle;
+}
+
+.timetable .time-cell {
+    font-weight: 500;
+    text-align: center;
+    background-color: #f5f5f5;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+}
+
+.timetable .day-cell {
+    background-color: white;
+    text-align: center;
+}
+
+.timetable .course-cell {
+    background-color: #e5f1f8;
+    border: 1px solid #c6e0f0;
+    vertical-align: top;
+    padding: 4px;
+}
+
+.course-info {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.course-title {
+    font-weight: bold;
+    font-size: 0.85rem;
+    margin-bottom: 2px;
+    color: var(--aub-primary);
+}
+
+.course-section, .course-location {
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+.download-buttons {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* Dark Mode for timetable */
+body.dark-mode .schedule-toggle-btn {
+    background-color: #333;
+    border-color: #444;
+    color: #f0f0f0;
+}
+
+body.dark-mode .schedule-toggle-btn.active {
+    background-color: var(--aub-primary);
+    border-color: var(--aub-primary);
+}
+
+body.dark-mode .schedule-toggle-btn:hover:not(.active) {
+    background-color: #444;
+}
+
+body.dark-mode .timetable th {
+    background-color: #1a1a1a;
+}
+
+body.dark-mode .timetable .time-cell {
+    background-color: #2a2a2a;
+    color: #f0f0f0;
+}
+
+body.dark-mode .timetable .day-cell {
+    background-color: #333;
+    color: #f0f0f0;
+}
+
+body.dark-mode .timetable .course-cell {
+    background-color: #2c3e50;
+    border-color: #34495e;
+    color: #f0f0f0;
+}
+
+body.dark-mode .course-title {
+    color: #7cb9e8;
+}
+
+/* Mobile responsive styles for timetable */
+@media (max-width: 768px) {
+    .timetable {
+        font-size: 0.7rem;
+    }
+    
+    .timetable th, 
+    .timetable td {
+        padding: 4px 2px;
+    }
+    
+    .course-title {
+        font-size: 0.7rem;
+    }
+    
+    .course-section, .course-location {
+        font-size: 0.65rem;
+    }
+    
+    .timetable .time-column {
+        width: 60px;
+    }
+}

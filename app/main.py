@@ -5,12 +5,14 @@ from app.api.router import api_router
 from app.models.schemas import State, QueryRequest
 from app.services.routing import route_to_department
 from app.services.advisor import process_query as advisor
+from app.services.advisor import memory as advisor_memory
 from app.services.whatsapp_handler import handle_whatsapp_message
 from app.services.utils import ensure_compatible_state, add_message_to_state
 import logging
 from twilio.twiml.messaging_response import MessagingResponse
 import json
 import uuid
+import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -57,6 +59,24 @@ def ensure_state(obj):
         return State(messages=obj["messages"])
     else:
         return State(messages=[])
+
+# Helper function to safely check if a session exists
+def session_exists(session_id):
+    """Safely check if a session exists in memory"""
+    try:
+        # First try to use exists method if available
+        if hasattr(advisor_memory, 'exists'):
+            return advisor_memory.exists(session_id)
+        
+        # Otherwise try to get the session and see if it succeeds
+        try:
+            advisor_memory.get(session_id)
+            return True
+        except:
+            return False
+    except Exception as e:
+        logger.error(f"Error checking session existence: {str(e)}")
+        return False
 
 @app.get("/")
 async def root():
@@ -178,13 +198,25 @@ async def reset_session(session_id: str):
     Reset a conversation session
     """
     try:
-        from app.services.advisor import memory
-        
         # Check if the session exists
-        if memory.exists(session_id):
+        if session_exists(session_id):
             # Delete the session from memory
-            memory.delete(session_id)
-            return {"message": f"Session {session_id} reset successfully"}
+            try:
+                if hasattr(advisor_memory, 'delete'):
+                    advisor_memory.delete(session_id)
+                # If delete is not supported, we can try other approaches
+                # like putting an empty state
+                else:
+                    empty_state = {
+                        "messages": [],
+                        "is_valid": True,
+                    }
+                    advisor_memory.put(session_id, empty_state)
+                
+                return {"message": f"Session {session_id} reset successfully"}
+            except Exception as e:
+                logger.error(f"Error deleting session: {str(e)}")
+                return {"message": f"Session {session_id} could not be fully reset: {str(e)}"}
         else:
             return {"message": f"Session {session_id} not found or already reset"}
             

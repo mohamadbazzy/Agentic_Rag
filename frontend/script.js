@@ -203,8 +203,382 @@ function formatMarkdown(str) {
     return str.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
 }
 
+// Function to check for and extract schedule JSON from a message
+function extractScheduleData(content) {
+    // Look for JSON data in the message between ```json and ```
+    const jsonMatch = content.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+    if (jsonMatch && jsonMatch[1]) {
+        try {
+            const scheduleData = JSON.parse(jsonMatch[1]);
+            if (scheduleData && scheduleData.is_schedule === true) {
+                return scheduleData;
+            }
+        } catch (e) {
+            console.error('Failed to parse schedule JSON:', e);
+        }
+    }
+    return null;
+}
+
+// Function to generate a visual schedule from the schedule data
+function generateScheduleTemplate(scheduleData) {
+    if (!scheduleData || !scheduleData.schedule || !scheduleData.schedule.length) {
+        return null;
+    }
+
+    // Create schedule container
+    const scheduleContainer = document.createElement('div');
+    scheduleContainer.className = 'schedule-container';
+
+    // Create schedule header with toggle buttons
+    const scheduleHeader = document.createElement('div');
+    scheduleHeader.className = 'schedule-header';
+    scheduleHeader.innerHTML = '<h3>Course Schedule</h3>';
+    
+    // Add view toggle buttons
+    const toggleContainer = document.createElement('div');
+    toggleContainer.className = 'schedule-toggle-container';
+    
+    const listViewBtn = document.createElement('button');
+    listViewBtn.className = 'schedule-toggle-btn active';
+    listViewBtn.innerHTML = '<i class="fas fa-list"></i> List View';
+    listViewBtn.onclick = () => toggleScheduleView(scheduleContainer, 'list');
+    
+    const weekViewBtn = document.createElement('button');
+    weekViewBtn.className = 'schedule-toggle-btn';
+    weekViewBtn.innerHTML = '<i class="fas fa-calendar-week"></i> Week View';
+    weekViewBtn.onclick = () => toggleScheduleView(scheduleContainer, 'week');
+    
+    toggleContainer.appendChild(listViewBtn);
+    toggleContainer.appendChild(weekViewBtn);
+    scheduleHeader.appendChild(toggleContainer);
+    scheduleContainer.appendChild(scheduleHeader);
+
+    // Create list view container
+    const listViewContainer = document.createElement('div');
+    listViewContainer.className = 'schedule-view list-view active';
+    
+    // Create the list view table
+    const scheduleTable = document.createElement('table');
+    scheduleTable.className = 'schedule-table';
+
+    // Create table header
+    const tableHeader = document.createElement('thead');
+    tableHeader.innerHTML = `
+        <tr>
+            <th>Course</th>
+            <th>Section</th>
+            <th>Days</th>
+            <th>Time</th>
+            <th>Location</th>
+            <th>Instructor</th>
+        </tr>
+    `;
+    scheduleTable.appendChild(tableHeader);
+
+    // Create table body
+    const tableBody = document.createElement('tbody');
+    
+    // Add courses to the table
+    scheduleData.schedule.forEach(course => {
+        course.meetings.forEach((meeting, index) => {
+            const row = document.createElement('tr');
+            
+            // Only show course code and section in first row of multiple meetings
+            if (index === 0) {
+                row.innerHTML = `
+                    <td rowspan="${course.meetings.length}">${course.course_code}</td>
+                    <td rowspan="${course.meetings.length}">${course.section}</td>
+                    <td>${meeting.days.join(', ')}</td>
+                    <td>${meeting.start_time} - ${meeting.end_time}</td>
+                    <td>${meeting.location || 'TBA'}</td>
+                    <td rowspan="${course.meetings.length}">${course.instructor || 'TBA'}</td>
+                `;
+            } else {
+                row.innerHTML = `
+                    <td>${meeting.days.join(', ')}</td>
+                    <td>${meeting.start_time} - ${meeting.end_time}</td>
+                    <td>${meeting.location || 'TBA'}</td>
+                `;
+            }
+            
+            tableBody.appendChild(row);
+        });
+    });
+    
+    scheduleTable.appendChild(tableBody);
+    listViewContainer.appendChild(scheduleTable);
+    scheduleContainer.appendChild(listViewContainer);
+    
+    // Create week view container
+    const weekViewContainer = document.createElement('div');
+    weekViewContainer.className = 'schedule-view week-view';
+    
+    // Create the weekly timetable
+    const timetable = generateWeeklyTimetable(scheduleData);
+    weekViewContainer.appendChild(timetable);
+    scheduleContainer.appendChild(weekViewContainer);
+
+    // Add download buttons
+    const downloadContainer = document.createElement('div');
+    downloadContainer.className = 'download-buttons';
+    
+    const downloadListBtn = document.createElement('button');
+    downloadListBtn.className = 'download-schedule-btn';
+    downloadListBtn.innerHTML = '<i class="fas fa-download"></i> Download List View';
+    downloadListBtn.onclick = () => {
+        toggleScheduleView(scheduleContainer, 'list');
+        setTimeout(() => {
+            downloadScheduleAsImage(listViewContainer, 'schedule-list-view');
+        }, 100);
+    };
+
+    const downloadWeekBtn = document.createElement('button');
+    downloadWeekBtn.className = 'download-schedule-btn';
+    downloadWeekBtn.innerHTML = '<i class="fas fa-download"></i> Download Week View';
+    downloadWeekBtn.onclick = () => {
+        toggleScheduleView(scheduleContainer, 'week');
+        setTimeout(() => {
+            downloadScheduleAsImage(weekViewContainer, 'schedule-week-view');
+        }, 100);
+    };
+
+    downloadContainer.appendChild(downloadListBtn);
+    downloadContainer.appendChild(downloadWeekBtn);
+    scheduleContainer.appendChild(downloadContainer);
+
+    return scheduleContainer;
+}
+
+// Function to toggle between schedule views
+function toggleScheduleView(container, viewType) {
+    // Get all toggle buttons and views
+    const toggleButtons = container.querySelectorAll('.schedule-toggle-btn');
+    const views = container.querySelectorAll('.schedule-view');
+    
+    // Remove active class from all buttons and views
+    toggleButtons.forEach(btn => btn.classList.remove('active'));
+    views.forEach(view => view.classList.remove('active'));
+    
+    // Add active class to selected button and view
+    if (viewType === 'list') {
+        container.querySelector('.schedule-toggle-btn:first-child').classList.add('active');
+        container.querySelector('.list-view').classList.add('active');
+    } else {
+        container.querySelector('.schedule-toggle-btn:last-child').classList.add('active');
+        container.querySelector('.week-view').classList.add('active');
+    }
+}
+
+// Function to generate weekly timetable
+function generateWeeklyTimetable(scheduleData) {
+    // Time slots from 8:00 AM to 9:00 PM
+    const startHour = 8; // 8:00 AM
+    const endHour = 21;  // 9:00 PM
+    const dayMap = {
+        'Monday': 0,
+        'Tuesday': 1,
+        'Wednesday': 2,
+        'Thursday': 3,
+        'Friday': 4,
+        'Saturday': 5,
+        'Sunday': 6
+    };
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
+    // Create timetable container
+    const timetableContainer = document.createElement('div');
+    timetableContainer.className = 'timetable-container';
+    
+    // Create timetable
+    const timetable = document.createElement('table');
+    timetable.className = 'timetable';
+    
+    // Create header row with days
+    const headerRow = document.createElement('tr');
+    headerRow.innerHTML = '<th class="time-column">Time</th>';
+    days.forEach(day => {
+        headerRow.innerHTML += `<th>${day}</th>`;
+    });
+    
+    const timetableHeader = document.createElement('thead');
+    timetableHeader.appendChild(headerRow);
+    timetable.appendChild(timetableHeader);
+    
+    // Create timetable body
+    const timetableBody = document.createElement('tbody');
+    
+    // Create a 2D array to hold all cells (time slots × days)
+    const timeSlots = (endHour - startHour) * 2; // Half-hour increments
+    const grid = Array(timeSlots).fill().map(() => Array(days.length).fill(null));
+    
+    // Parse schedule data to get course meetings
+    scheduleData.schedule.forEach(course => {
+        course.meetings.forEach(meeting => {
+            // Skip if no days defined
+            if (!meeting.days || !meeting.days.length) return;
+            
+            // Parse start and end times
+            let startHourVal, startMinVal, endHourVal, endMinVal;
+            
+            // Handle different time formats
+            if (meeting.start_time && meeting.end_time) {
+                const startTimeParts = meeting.start_time.match(/(\d+):(\d+)\s*(am|pm)/i);
+                const endTimeParts = meeting.end_time.match(/(\d+):(\d+)\s*(am|pm)/i);
+                
+                if (!startTimeParts || !endTimeParts) return;
+                
+                startHourVal = parseInt(startTimeParts[1]);
+                startMinVal = parseInt(startTimeParts[2]);
+                const startPeriod = startTimeParts[3].toLowerCase();
+                
+                endHourVal = parseInt(endTimeParts[1]);
+                endMinVal = parseInt(endTimeParts[2]);
+                const endPeriod = endTimeParts[3].toLowerCase();
+                
+                // Convert to 24-hour format
+                if (startPeriod === 'pm' && startHourVal < 12) startHourVal += 12;
+                if (startPeriod === 'am' && startHourVal === 12) startHourVal = 0;
+                if (endPeriod === 'pm' && endHourVal < 12) endHourVal += 12;
+                if (endPeriod === 'am' && endHourVal === 12) endHourVal = 0;
+            } else {
+                // Skip if no valid times
+                return;
+            }
+            
+            // Calculate start and end in half-hour slots
+            let startSlot = Math.max(0, (startHourVal - startHour) * 2 + (startMinVal >= 30 ? 1 : 0));
+            let endSlot = Math.min(timeSlots, (endHourVal - startHour) * 2 + (endMinVal > 0 ? 1 : 0));
+            
+            // Ensure valid slots
+            if (startSlot >= timeSlots || endSlot <= 0 || startSlot >= endSlot) {
+                return;
+            }
+            
+            const duration = endSlot - startSlot;
+            
+            // Add course to the grid for each day
+            meeting.days.forEach(day => {
+                // Handle different day formats
+                let dayIndex;
+                if (typeof day === 'string') {
+                    // Try direct mapping first
+                    dayIndex = dayMap[day];
+                    
+                    // If that doesn't work, try a substring match
+                    if (dayIndex === undefined) {
+                        for (const [dayName, index] of Object.entries(dayMap)) {
+                            if (dayName.toLowerCase().includes(day.toLowerCase()) || 
+                                day.toLowerCase().includes(dayName.toLowerCase())) {
+                                dayIndex = index;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // Skip if day not recognized
+                if (dayIndex === undefined || dayIndex >= days.length) {
+                    return;
+                }
+                
+                // Add the course to the grid
+                for (let i = startSlot; i < endSlot; i++) {
+                    // Mark cells that will be covered by rowspan
+                    if (i === startSlot) {
+                        grid[i][dayIndex] = {
+                            course: course.course_code,
+                            section: course.section,
+                            title: course.title || course.course_code,
+                            location: meeting.location || 'TBA',
+                            duration: duration,
+                            instructor: course.instructor || 'TBA',
+                            isStart: true
+                        };
+                    } else {
+                        grid[i][dayIndex] = {
+                            covered: true
+                        };
+                    }
+                }
+            });
+        });
+    });
+    
+    // Create rows for each time slot
+    for (let timeSlot = 0; timeSlot < timeSlots; timeSlot++) {
+        const hour = Math.floor(timeSlot / 2) + startHour;
+        const minutes = timeSlot % 2 === 0 ? '00' : '30';
+        const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+        const period = hour < 12 ? 'am' : 'pm';
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `<td class="time-cell">${displayHour}:${minutes} ${period}</td>`;
+        
+        // Add cells for each day based on the grid
+        for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
+            const cellData = grid[timeSlot][dayIndex];
+            
+            if (!cellData) {
+                // Empty cell
+                const cell = document.createElement('td');
+                cell.className = 'day-cell';
+                row.appendChild(cell);
+            } else if (cellData.isStart) {
+                // Course cell
+                const cell = document.createElement('td');
+                cell.className = 'course-cell';
+                cell.setAttribute('rowspan', cellData.duration);
+                
+                // Color coding based on course name (simple hash function for color)
+                const courseHash = cellData.course.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                const hue = courseHash % 360;
+                
+                cell.style.backgroundColor = `hsl(${hue}, 85%, 92%)`;
+                cell.style.borderColor = `hsl(${hue}, 60%, 80%)`;
+                
+                cell.innerHTML = `
+                    <div class="course-info">
+                        <div class="course-title">${cellData.course}</div>
+                        <div class="course-section">Section ${cellData.section}</div>
+                        <div class="course-location">${cellData.location}</div>
+                    </div>
+                `;
+                
+                row.appendChild(cell);
+            }
+            // Covered cells (part of a rowspan) are skipped
+        }
+        
+        timetableBody.appendChild(row);
+    }
+    
+    timetable.appendChild(timetableBody);
+    timetableContainer.appendChild(timetable);
+    
+    return timetableContainer;
+}
+
+// Function to download schedule as image
+function downloadScheduleAsImage(scheduleElement, filename = 'my-schedule') {
+    // Use html2canvas library to convert the schedule to an image
+    if (typeof html2canvas !== 'undefined') {
+        html2canvas(scheduleElement).then(canvas => {
+            const imageData = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = imageData;
+            link.download = `${filename}.png`;
+            link.click();
+        });
+    } else {
+        console.error('html2canvas library not loaded');
+        alert('Download functionality requires html2canvas library which is not loaded');
+    }
+}
+
 // Function to render messages
 function renderMessages() {
+    // Clear the chat display
     chatDisplay.innerHTML = '';
     
     // Add welcome message with suggested questions if no messages
@@ -281,16 +655,41 @@ function renderMessages() {
             senderLabel.className = 'sender-label';
             senderLabel.textContent = `${senderName}:`;
             
-            const messageText = document.createElement('span');
-            messageText.className = 'message-text';
-            messageText.innerHTML = formatMarkdown(sanitize(message.content)).replace(/\n/g, '<br>');
+            // Check for schedule data in the message content
+            let messageText = message.content;
+            let scheduleTemplate = null;
+            
+            const scheduleData = extractScheduleData(message.content);
+            if (scheduleData) {
+                // Remove the JSON part from the displayed message
+                messageText = message.content.replace(/```json\s*(\{[\s\S]*?\})\s*```/g, '');
+                // Generate the schedule template
+                scheduleTemplate = generateScheduleTemplate(scheduleData);
+            }
+            
+            const messageTextElement = document.createElement('span');
+            messageTextElement.className = 'message-text';
+            messageTextElement.innerHTML = formatMarkdown(sanitize(messageText)).replace(/\n/g, '<br>');
             
             chatContent.appendChild(senderLabel);
-            chatContent.appendChild(messageText);
+            chatContent.appendChild(messageTextElement);
             
             botContainer.appendChild(botIcon);
             botContainer.appendChild(chatContent);
-            chatDisplay.appendChild(botContainer);
+            
+            // Append the schedule template if it exists
+            if (scheduleTemplate) {
+                const scheduleWrapper = document.createElement('div');
+                scheduleWrapper.className = 'schedule-wrapper';
+                scheduleWrapper.appendChild(scheduleTemplate);
+                
+                // Create a separate container for the schedule after the bot message
+                chatDisplay.appendChild(botContainer);
+                chatDisplay.appendChild(scheduleWrapper);
+            } else {
+                chatDisplay.appendChild(botContainer);
+            }
+            
         }
     });
     

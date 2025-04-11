@@ -114,7 +114,8 @@ def schedule_helper(state: State):
                         context_str += f"  Time: {meeting.get('start_time', '')} to {meeting.get('end_time', '')}\n"
                         context_str += f"  Location: {meeting.get('building', '')} {meeting.get('room', '')}\n"
     
-    system_message = f"""
+    # Create base prompt
+    base_prompt = """
     You are a scheduling assistant for students at the American University of Beirut (AUB).
     
     The student is asking about: "{user_message}"
@@ -136,9 +137,39 @@ def schedule_helper(state: State):
     Respond in a professional, helpful manner appropriate for a university scheduling assistant.
     
     IF ASKED ABOUT SCHEDULE YOUR JOB IS TO PROPOSE A SCHEDULE NOT TO STATE OPTIONS GIVE THE STUDENT THE BEST SCHEDULE POSSIBLE.
-
-
     """
+    
+    # Create JSON template instruction separately
+    json_instruction = """
+    IMPORTANT: When responding to schedule creation requests, you must include a structured representation of the schedule in the following JSON format at the end of your message:
+    
+    ```json
+    {
+      "is_schedule": true,
+      "schedule": [
+        {
+          "course_code": "COURSE_CODE",
+          "section": "SECTION_NUMBER",
+          "title": "COURSE_TITLE",
+          "meetings": [
+            {
+              "days": ["MONDAY", "WEDNESDAY"],
+              "start_time": "9:00 am",
+              "end_time": "10:15 am",
+              "location": "BUILDING ROOM"
+            }
+          ],
+          "instructor": "INSTRUCTOR_NAME"
+        }
+      ]
+    }
+    ```
+    
+    The structured schedule should be included ONLY when the user is specifically asking for a schedule to be created, not for general course information queries.
+    """
+    
+    # Combine the parts using format() instead of f-strings
+    system_message = base_prompt.format(user_message=user_message, context_str=context_str) + json_instruction
     
     messages = [{"role": "system", "content": system_message}] + state["messages"]
     
