@@ -69,7 +69,6 @@ def ece_department(state: State):
     prompt = f"""
     You are the academic advisor for the Electrical and Computer Engineering (ECE) department at AUB's MSFEA you can answer general questions about the department but if the question is about a specific track Return only the track abbreviation (CSE, CCE, or ECE) without any explanation..
 
-
     Determine which specific track within ECE this query is most directly related to:
     Query: {user_message}
 
@@ -89,7 +88,19 @@ def ece_department(state: State):
 
     """
     
-    track_response = llm.invoke([{"role": "user", "content": prompt}])
+    # Get thread_id from configurable state if available (for conversation memory)
+    thread_id = None
+    if hasattr(state, "get") and callable(state.get):
+        config = state.get("configurable", {})
+        if isinstance(config, dict):
+            thread_id = config.get("thread_id")
+    
+    # Pass thread_id to maintain conversation context if available
+    if thread_id:
+        track_response = llm.invoke([{"role": "user", "content": prompt}], config={"configurable": {"thread_id": thread_id}})
+    else:
+        track_response = llm.invoke([{"role": "user", "content": prompt}])
+    
     track = track_response.content.strip().upper()  # Force to uppercase
     
     # Handle the case where a nonsense response might be returned

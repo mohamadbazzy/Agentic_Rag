@@ -17,7 +17,7 @@ llm = ChatOpenAI(
 ece_track_vectorstore = get_agent_vectorstore("ece_track")
 
 def ece_track(state: State):
-    """Handle queries about the general Electrical and Computer Engineering track"""
+    """Handle queries about the Electrical and Computer Engineering track"""
     user_message = state["messages"][-1].content
     query_type = state.get("query_type", "General")
     
@@ -85,6 +85,18 @@ def ece_track(state: State):
     """
     
     messages = [{"role": "system", "content": system_message}] + state["messages"]
-    response = llm.invoke(messages)
+    
+    # Get thread_id from configurable state if available (for conversation memory)
+    thread_id = None
+    if hasattr(state, "get") and callable(state.get):
+        config = state.get("configurable", {})
+        if isinstance(config, dict):
+            thread_id = config.get("thread_id")
+    
+    # Pass thread_id to maintain conversation context if available
+    if thread_id:
+        response = llm.invoke(messages, config={"configurable": {"thread_id": thread_id}})
+    else:
+        response = llm.invoke(messages)
     
     return {"messages": response}

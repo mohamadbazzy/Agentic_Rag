@@ -128,22 +128,38 @@ let messages = [
     }
 ];
 
-// Load chat history from localStorage if available
-const savedMessages = localStorage.getItem('msfeaAdvisorMessages');
-if (savedMessages) {
-    try {
-        const parsedMessages = JSON.parse(savedMessages);
-        if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
-            messages = parsedMessages;
+// Session ID for conversation persistence
+let sessionId = localStorage.getItem('msfeaAdvisorSessionId') || null;
+
+// Load chat history from localStorage if no session ID
+if (!sessionId) {
+    const savedMessages = localStorage.getItem('msfeaAdvisorMessages');
+    if (savedMessages) {
+        try {
+            const parsedMessages = JSON.parse(savedMessages);
+            if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
+                messages = parsedMessages;
+            }
+        } catch (e) {
+            console.error('Error parsing saved messages:', e);
         }
-    } catch (e) {
-        console.error('Error parsing saved messages:', e);
     }
 }
 
 // Save messages to localStorage whenever they change
 function saveMessagesToLocalStorage() {
-    localStorage.setItem('msfeaAdvisorMessages', JSON.stringify(messages));
+    // Only save to localStorage if we don't have a session ID
+    if (!sessionId) {
+        localStorage.setItem('msfeaAdvisorMessages', JSON.stringify(messages));
+    }
+}
+
+// Save session ID to localStorage
+function saveSessionId(id) {
+    if (id) {
+        sessionId = id;
+        localStorage.setItem('msfeaAdvisorSessionId', id);
+    }
 }
 
 // Function to populate department list
@@ -724,3 +740,108 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-focus the input field for immediate typing
     userInput.focus();
 });
+
+// Send message to the backend
+async function sendMessageToBackend(userMessage) {
+    const apiUrl = API_CHAT_URL;
+
+    try {
+        // Show thinking indicator
+        showThinkingAnimation();
+        
+        // Prepare headers
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        // Add session ID if we have one
+        if (sessionId) {
+            headers['X-Session-ID'] = sessionId;
+        }
+        
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: headers,
+            credentials: 'include', // This enables cookies to be sent and received
+            body: JSON.stringify({
+                text: userMessage
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+
+        // Check for session ID cookie and save it
+        const cookies = document.cookie.split(';');
+        for (const cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'session_id') {
+                saveSessionId(value);
+                break;
+            }
+        }
+        
+        // Process response
+        const data = await response.json();
+        
+        // Replace the thinking message with the actual response
+        stopThinkingAnimation();
+        
+        // Add the bot's reply
+        addMessage("bot", data.content, data.department || "MSFEA Advisor");
+        
+        // Update UI based on department change
+        if (data.department && departmentMap[data.department]) {
+            updateDepartment(data.department);
+        }
+        
+    } catch (error) {
+        console.error('Error sending message to backend:', error);
+        stopThinkingAnimation();
+        
+        // Add error message
+        addMessage("bot", "I apologize, but there was an error processing your request. Please try again.", "MSFEA Advisor");
+    }
+}
+
+// Reset conversation function
+async function resetConversation() {
+    try {
+        // If we have a session ID, call the reset API
+        if (sessionId) {
+            const response = await fetch(`${API_CHAT_URL}/reset/${sessionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                console.error(`Failed to reset session: ${response.status}`);
+            }
+            
+            // Clear session ID
+            sessionId = null;
+            localStorage.removeItem('msfeaAdvisorSessionId');
+        }
+        
+        // Clear messages
+        messages = [{
+            role: "bot",
+            content: "Conversation has been reset. How can I help you?",
+            department: currentDepartment,
+            departmentIcon: currentDepartmentIcon
+        }];
+        
+        // Update localStorage
+        saveMessagesToLocalStorage();
+        
+        // Re-render the chat
+        renderMessages();
+        
+    } catch (error) {
+        console.error('Error resetting conversation:', error);
+        addMessage("bot", "There was an error resetting the conversation. Please try again.", "MSFEA Advisor");
+    }
+}

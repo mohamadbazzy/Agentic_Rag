@@ -53,6 +53,13 @@ def supervisor(state: State):
     # Get the latest user message
     user_message = state["messages"][-1].content
     
+    # Get thread_id from configurable state if available (for conversation memory)
+    thread_id = None
+    if hasattr(state, "get") and callable(state.get):
+        config = state.get("configurable", {})
+        if isinstance(config, dict):
+            thread_id = config.get("thread_id")
+    
     # STEP 1: Validate the query
     validation_prompt = f"""
     Determine if this query is appropriate for an academic advising system at AUB's MSFEA:
@@ -90,7 +97,13 @@ def supervisor(state: State):
     - Spam or nonsensical text (e.g., random keyboard mashing)
     """
     
-    validation_response = llm.invoke([{"role": "user", "content": validation_prompt}])
+    # Pass thread_id to maintain conversation context if available
+    if thread_id:
+        validation_response = llm.invoke([{"role": "user", "content": validation_prompt}], 
+                                        config={"configurable": {"thread_id": f"{thread_id}_validation"}})
+    else:
+        validation_response = llm.invoke([{"role": "user", "content": validation_prompt}])
+    
     validation_result = validation_response.content.strip()
     
     # If invalid, return a rejection response
@@ -129,7 +142,13 @@ def supervisor(state: State):
     Return only the department name or "Schedule Helper" without any explanation.
     """
     
-    department_response = llm.invoke([{"role": "user", "content": department_prompt}])
+    # Pass thread_id to maintain conversation context if available
+    if thread_id:
+        department_response = llm.invoke([{"role": "user", "content": department_prompt}], 
+                                        config={"configurable": {"thread_id": f"{thread_id}_department"}})
+    else:
+        department_response = llm.invoke([{"role": "user", "content": department_prompt}])
+    
     department = department_response.content.strip()
     
     # STEP 3: Use a default query type instead of LLM determination

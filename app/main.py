@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response as FastAPIResponse
 from app.api.router import api_router
-from app.models.schemas import State
+from app.models.schemas import State, QueryRequest
 from app.services.routing import route_to_department
 from app.services.advisor import process_query as advisor
 from app.services.whatsapp_handler import handle_whatsapp_message
@@ -10,6 +10,7 @@ from app.services.utils import ensure_compatible_state, add_message_to_state
 import logging
 from twilio.twiml.messaging_response import MessagingResponse
 import json
+import uuid
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +34,7 @@ app.add_middleware(
 # Include the API router
 app.include_router(api_router, prefix="/api")
 
-# Simple in-memory store (replace with database in production)
+# Simple in-memory store for WhatsApp sessions
 whatsapp_sessions = {}
 
 def get_messages(state_obj):
@@ -74,6 +75,49 @@ async def reset():
     # Add logic to reset the conversation state
     return {"message": "Conversation reset successfully"}
 
+@app.post("/api/query")
+async def query(query_request: QueryRequest, request: Request):
+    """
+    Process a query and generate a response
+    """
+    try:
+        # Extract session_id from cookies or headers, or generate a new one
+        session_id = request.cookies.get("session_id") or request.headers.get("X-Session-ID")
+        is_new_session = False
+        
+        if not session_id:
+            # Generate a new session ID
+            session_id = str(uuid.uuid4())
+            is_new_session = True
+            logger.info(f"Created new session: {session_id}")
+        else:
+            logger.info(f"Using existing session: {session_id}")
+        
+        # Process the query with the session ID
+        response = advisor(query_request.text, session_id)
+        
+        # Create the response
+        response_obj = JSONResponse(content=response.dict())
+        
+        # Set the session cookie if it's a new session
+        if is_new_session:
+            response_obj.set_cookie(
+                key="session_id",
+                value=session_id,
+                httponly=True,
+                max_age=86400 * 7,  # 7 days
+                samesite="lax"
+            )
+        
+        return response_obj
+        
+    except Exception as e:
+        logger.error(f"Error processing query: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"An error occurred: {str(e)}"}
+        )
+
 @app.post("/api/whatsapp/webhook")
 async def whatsapp_webhook(request: Request):
     try:
@@ -91,66 +135,64 @@ async def whatsapp_webhook(request: Request):
         
         # Handle reset command
         if incoming_msg.lower() in ["reset", "restart", "start over"]:
-            whatsapp_sessions[sender] = {"messages": []}
+            # We'll use the sender as the session ID
+            # The memory will be automatically reset on the next query
             response = MessagingResponse()
             response.message("Conversation has been reset. How can I help you with your academic inquiries?")
             return FastAPIResponse(content=str(response), media_type="application/xml")
         
-        # Initialize session if needed
-        if sender not in whatsapp_sessions:
-            whatsapp_sessions[sender] = {"messages": []}
+        # Use the sender phone number as the session ID
+        session_id = sender
         
-        # Add message to session using our utility
-        whatsapp_sessions[sender] = add_message_to_state(
-            whatsapp_sessions[sender], "user", incoming_msg
-        )
-            
         try:
-            # Create a state-like object that's guaranteed to be compatible
-            session_state = ensure_compatible_state(whatsapp_sessions[sender])
-
-            # Use your handler function
-            response_text = handle_whatsapp_message(incoming_msg, session_state)
-
-            # Save conversation history
-            whatsapp_sessions[sender] = add_message_to_state(
-                whatsapp_sessions[sender], "assistant", response_text
-            )
-
+            # Process the message with the LangGraph memory system
+            response_obj = advisor(incoming_msg, session_id)
+            response_text = response_obj.content
+            
             # Format and return response
             response = MessagingResponse()
             response.message(response_text)
-
-            # Add debugging log to see the actual response being sent
+            
             logger.info(f"Sending WhatsApp response: {str(response)}")
-
             return FastAPIResponse(content=str(response), media_type="application/xml")
             
         except Exception as e:
-            # Enhanced error logging
-            logger.error(f"Error processing WhatsApp message: {str(e)}", exc_info=True)
-            
-            # Fallback for majors question - this seems to be the specific question that failed
-            if "major" in incoming_msg.lower() or "program" in incoming_msg.lower() or "msfea" in incoming_msg.lower():
-                response_data = {
-                    "content": "MSFEA offers undergraduate majors in Architecture, Civil, Chemical, Electrical and Computer (with CCE and CSE tracks), Industrial, and Mechanical Engineering. All programs are ABET accredited. Would you like more information about any specific program?",
-                    "department": "MSFEA Advisor"
-                }
-            else:
-                response_data = {
-                    "content": "I apologize, but I encountered an error processing your request. Please try again with a different question or type 'reset' to start over.",
-                    "department": "MSFEA Advisor"
-                }
-                
-            # Send the response
+            logger.error(f"Error calling advisor: {str(e)}")
+            # Create a fallback response
             response = MessagingResponse()
-            response.message(response_data["content"])
+            response.message(f"Sorry, I encountered an error processing your question: {str(e)}")
             return FastAPIResponse(content=str(response), media_type="application/xml")
             
     except Exception as e:
-        logger.error(f"WhatsApp webhook error: {str(e)}", exc_info=True)
+        import traceback
+        logger.error(f"Error in WhatsApp webhook: {str(e)}")
+        logger.error(traceback.format_exc())
+        
         response = MessagingResponse()
         response.message("I apologize, but I encountered an error. Please try again or type 'reset' to start over.")
         return FastAPIResponse(content=str(response), media_type="application/xml")
+
+@app.post("/api/reset/{session_id}")
+async def reset_session(session_id: str):
+    """
+    Reset a conversation session
+    """
+    try:
+        from app.services.advisor import memory
+        
+        # Check if the session exists
+        if memory.exists(session_id):
+            # Delete the session from memory
+            memory.delete(session_id)
+            return {"message": f"Session {session_id} reset successfully"}
+        else:
+            return {"message": f"Session {session_id} not found or already reset"}
+            
+    except Exception as e:
+        logger.error(f"Error resetting session: {str(e)}")
+        return JSONResponse(
+            status_code=500, 
+            content={"detail": f"An error occurred while resetting the session: {str(e)}"}
+        )
 
 # Additional routes as needed

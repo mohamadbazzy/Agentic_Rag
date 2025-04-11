@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 from app.models.schemas import State
 from app.services.supervisor import supervisor
 from app.services.departments.chemical import chemical_department
@@ -31,22 +32,40 @@ llm = ChatOpenAI(
 # Get a dedicated vector store for advisor
 advisor_vectorstore = get_agent_vectorstore("advisor")
 
-def process_query(query_text: str) -> QueryResponse:
+# Create a memory saver for persistent conversation history
+memory = MemorySaver()
+
+def process_query(query_text: str, session_id: str = None) -> QueryResponse:
     """
     Process a student query and generate a response
+    
+    Args:
+        query_text: The query text from the user
+        session_id: Optional session ID for retrieving conversation history
     """
     try:
         # Create the chat graph
         graph = build_graph()
         
-        # Create the initial state
-        state = {
-            "messages": [{"role": "user", "content": query_text}],
-            "is_valid": True,
-        }
+        # Create the initial state or retrieve from memory if session_id is provided
+        if session_id and memory.exists(session_id):
+            # Retrieve existing conversation state
+            state = memory.get(session_id)
+            # Add the new user message
+            state["messages"].append({"role": "user", "content": query_text})
+        else:
+            # Create a new state
+            state = {
+                "messages": [{"role": "user", "content": query_text}],
+                "is_valid": True,
+            }
         
-        # Execute the graph and capture path information
-        result = graph.invoke(state)
+        # Execute the graph with the state
+        result = graph.invoke(state, config={"configurable": {"thread_id": session_id}})
+        
+        # Save the updated state if session_id is provided
+        if session_id:
+            memory.put(session_id, result)
         
         # Extract the response content
         if "messages" in result and len(result["messages"]) > 0:
@@ -54,7 +73,7 @@ def process_query(query_text: str) -> QueryResponse:
         else:
             response_content = "I'm sorry, I couldn't process your request."
         
-        # Get the routing path (IMPORTANT ADDITION)
+        # Get the routing path
         path = result.get("path", [])
         department = determine_department_from_path(path)
         
@@ -159,7 +178,8 @@ def build_graph():
     graph.add_edge("cce", END)
     graph.add_edge("ece_track", END)
     
-    return graph.compile()
+    # Compile the graph with memory checkpointer
+    return graph.compile(checkpointer=memory)
 
 def determine_department(text):
     """Determine which department the query is about"""
