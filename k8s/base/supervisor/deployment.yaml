@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supervisor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: supervisor
+  template:
+    metadata:
+      labels:
+        app: supervisor
+    spec:
+      containers:
+      - name: supervisor
+        image: aubadvisoracr.azurecr.io/supervisor:latest

@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: departments
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: departments
+  template:
+    metadata:
+      labels:
+        app: departments
+    spec:
+      containers:
+      - name: departments
+        image: aubadvisoracr.azurecr.io/departments:latest
