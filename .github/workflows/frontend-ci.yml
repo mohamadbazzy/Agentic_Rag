@@ -1,0 +1,42 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - 'docker/frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Build and push
+        uses: azure/docker-login@v1
+        with:
+          login-server: aubadvisoracr.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - run: |
+          docker build -t aubadvisoracr.azurecr.io/frontend:${{ github.sha }} -f docker/frontend/Dockerfile .
+          docker tag aubadvisoracr.azurecr.io/frontend:${{ github.sha }} aubadvisoracr.azurecr.io/frontend:latest
+          docker push aubadvisoracr.azurecr.io/frontend:${{ github.sha }}
+          docker push aubadvisoracr.azurecr.io/frontend:latest
+      
+      - name: Update deployment manifest
+        run: |
+          sed -i "s|image: aubadvisoracr.azurecr.io/frontend:.*|image: aubadvisoracr.azurecr.io/frontend:${{ github.sha }}|" k8s/base/frontend/deployment.yaml
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add k8s/base/frontend/deployment.yaml
+          git commit -m "Update frontend image to ${{ github.sha }}"
+          git push
