@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scraper
+  template:
+    metadata:
+      labels:
+        app: scraper
+    spec:
+      containers:
+      - name: scraper
+        image: aubadvisoracr.azurecr.io/scraper:latest
+        volumeMounts:
+        - name: scraper-output
+          mountPath: /app/Scraper/output
+      volumes:
+      - name: scraper-output
+        emptyDir: {}

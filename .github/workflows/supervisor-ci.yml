@@ -1,0 +1,42 @@
+name: Supervisor CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app/services/supervisor/**'
+      - 'docker/supervisor/**'
+      - '.github/workflows/supervisor-ci.yml'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Build and push
+        uses: azure/docker-login@v1
+        with:
+          login-server: aubadvisoracr.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - run: |
+          docker build -t aubadvisoracr.azurecr.io/supervisor:${{ github.sha }} -f docker/supervisor/Dockerfile .
+          docker tag aubadvisoracr.azurecr.io/supervisor:${{ github.sha }} aubadvisoracr.azurecr.io/supervisor:latest
+          docker push aubadvisoracr.azurecr.io/supervisor:${{ github.sha }}
+          docker push aubadvisoracr.azurecr.io/supervisor:latest
+      
+      - name: Update deployment manifest
+        run: |
+          sed -i "s|image: aubadvisoracr.azurecr.io/supervisor:.*|image: aubadvisoracr.azurecr.io/supervisor:${{ github.sha }}|" k8s/base/supervisor/deployment.yaml
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add k8s/base/supervisor/deployment.yaml
+          git commit -m "Update supervisor image to ${{ github.sha }}"
+          git push

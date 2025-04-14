@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whatsapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whatsapp
+  template:
+    metadata:
+      labels:
+        app: whatsapp
+    spec:
+      containers:
+      - name: whatsapp
+        image: aubadvisoracr.azurecr.io/whatsapp:latest
+        ports:
+        - containerPort: 8000

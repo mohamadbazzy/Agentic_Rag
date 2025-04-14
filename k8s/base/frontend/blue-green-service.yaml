@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-blue-green
+  annotations:
+    # Current active deployment (blue or green)
+    service.kubernetes.io/deployment: blue
+spec:
+  selector:
+    app: frontend
+    deployment: blue  # This will switch between blue and green
+  ports:
+  - port: 80
+    targetPort: 80
+  type: LoadBalancer

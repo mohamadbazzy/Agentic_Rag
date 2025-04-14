@@ -1,0 +1,42 @@
+name: Scraper CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Scraper/**'
+      - 'docker/scraper/**'
+      - '.github/workflows/scraper-ci.yml'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Build and push
+        uses: azure/docker-login@v1
+        with:
+          login-server: aubadvisoracr.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - run: |
+          docker build -t aubadvisoracr.azurecr.io/scraper:${{ github.sha }} -f docker/scraper/Dockerfile .
+          docker tag aubadvisoracr.azurecr.io/scraper:${{ github.sha }} aubadvisoracr.azurecr.io/scraper:latest
+          docker push aubadvisoracr.azurecr.io/scraper:${{ github.sha }}
+          docker push aubadvisoracr.azurecr.io/scraper:latest
+      
+      - name: Update deployment manifest
+        run: |
+          sed -i "s|image: aubadvisoracr.azurecr.io/scraper:.*|image: aubadvisoracr.azurecr.io/scraper:${{ github.sha }}|" k8s/base/scraper/deployment.yaml
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add k8s/base/scraper/deployment.yaml
+          git commit -m "Update scraper image to ${{ github.sha }}"
+          git push
