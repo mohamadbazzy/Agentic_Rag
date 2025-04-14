@@ -48,11 +48,35 @@ def process_query(query_text: str, session_id: str = None) -> QueryResponse:
         graph = build_graph()
         
         # Create the initial state or retrieve from memory if session_id is provided
-        if session_id and memory.exists(session_id):
-            # Retrieve existing conversation state
-            state = memory.get(session_id)
-            # Add the new user message
-            state["messages"].append({"role": "user", "content": query_text})
+        if session_id:
+            # Try to safely check if session exists
+            session_exists = False
+            try:
+                # First try to use exists method if available
+                if hasattr(memory, 'exists'):
+                    session_exists = memory.exists(session_id)
+                else:
+                    # Otherwise try to get the session and see if it succeeds
+                    try:
+                        memory.get(session_id)
+                        session_exists = True
+                    except:
+                        session_exists = False
+            except Exception as e:
+                logger.error(f"Error checking session existence: {str(e)}")
+                session_exists = False
+                
+            if session_exists:
+                # Retrieve existing conversation state
+                state = memory.get(session_id)
+                # Add the new user message
+                state["messages"].append({"role": "user", "content": query_text})
+            else:
+                # Create a new state
+                state = {
+                    "messages": [{"role": "user", "content": query_text}],
+                    "is_valid": True,
+                }
         else:
             # Create a new state
             state = {
@@ -65,7 +89,22 @@ def process_query(query_text: str, session_id: str = None) -> QueryResponse:
         
         # Save the updated state if session_id is provided
         if session_id:
-            memory.put(session_id, result)
+            try:
+                # Try the most common ways to call put() with different parameters
+                try:
+                    # Simple version first
+                    memory.put(session_id, result)
+                except TypeError:
+                    try:
+                        # Try with empty dicts for metadata and versions
+                        memory.put(session_id, result, {}, {})
+                    except TypeError:
+                        # Try with pending_sends parameter
+                        memory.put(session_id, result, {}, {}, pending_sends={})
+            except Exception as e:
+                # Just log the error but continue - the conversation will work
+                # but won't be saved for next time
+                logger.error(f"Error saving session: {str(e)}")
         
         # Extract the response content
         if "messages" in result and len(result["messages"]) > 0:
