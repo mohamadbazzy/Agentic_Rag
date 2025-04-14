@@ -1,0 +1,218 @@
+# Detailed CI/CD Implementation Plan for AKS + ArgoCD
+
+## Phase 1: Azure Infrastructure Setup (3-4 hours)
+
+1. Create Resource Group
+   az group create --name aub-advisor-rg --location eastus
+
+2. Create AKS Cluster
+   az aks create --resource-group aub-advisor-rg --name aub-advisor-aks \
+     --node-count 2 --enable-addons monitoring --generate-ssh-keys \
+     --vm-set-type VirtualMachineScaleSets --load-balancer-sku standard
+
+3. Connect to AKS Cluster
+   az aks get-credentials --resource-group aub-advisor-rg --name aub-advisor-aks
+
+4. Create Azure Container Registry
+   az acr create --resource-group aub-advisor-rg \
+     --name aubadvisoracr --sku Standard
+
+5. Link ACR with AKS for pull access
+   az aks update --resource-group aub-advisor-rg --name aub-advisor-aks \
+     --attach-acr aubadvisoracr
+
+## Phase 2: ArgoCD Setup (2-3 hours)
+
+1. Install ArgoCD on cluster
+   kubectl create namespace argocd
+   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+2. Access ArgoCD UI
+   kubectl port-forward svc/argocd-server -n argocd 8080:443
+
+3. Get initial admin password
+   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+4. Install ArgoCD CLI
+   curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+   sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+   rm argocd-linux-amd64
+
+## Phase 3: Kubernetes Manifests Creation (5-6 hours)
+
+1. Create project repository structure
+   k8s/
+   ├── base/
+   │   ├── backend/
+   │   ├── frontend/
+   │   ├── supervisor/
+   │   ├── departments/
+   │   ├── scraper/
+   │   ├── whatsapp/
+   │   └── database/ (if needed)
+   └── overlays/
+       ├── dev/
+       ├── staging/
+       └── prod/
+
+2. Create base manifests for each service
+   - Create Deployments, Services, ConfigMaps, Secrets
+   - Example for backend service:
+   
+   # k8s/base/backend/deployment.yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: backend
+   spec:
+     replicas: 2
+     selector:
+       matchLabels:
+         app: backend
+     template:
+       metadata:
+         labels:
+           app: backend
+       spec:
+         containers:
+         - name: backend
+           image: aubadvisoracr.azurecr.io/backend:latest
+           ports:
+           - containerPort: 8000
+           env:
+           - name: DB_CONNECTION
+             valueFrom:
+               secretKeyRef:
+                 name: backend-secrets
+                 key: db-connection
+
+3. Create Kustomize configurations
+   - Set up base and overlay configurations
+   - Configure resource limits
+   - Define environment-specific values
+
+4. Set up blue-green deployment
+   - Create service selector setup for blue/green switching
+   - Add deployment configurations for both environments
+
+## Phase 4: GitHub Actions CI Pipeline (3-4 hours)
+
+1. Create GitHub secrets
+   - AZURE_CREDENTIALS (service principal)
+   - ACR_USERNAME and ACR_PASSWORD
+
+2. Create workflows for each service
+   # .github/workflows/backend-ci.yml
+   name: Backend CI
+
+   on:
+     push:
+       branches: [ main ]
+       paths:
+         - 'app/**'
+         - 'docker/backend/**'
+         - '.github/workflows/backend-ci.yml'
+
+   jobs:
+     build-and-push:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v3
+         
+         - name: Azure login
+           uses: azure/login@v1
+           with:
+             creds: ${{ secrets.AZURE_CREDENTIALS }}
+         
+         - name: Build and push
+           uses: azure/docker-login@v1
+           with:
+             login-server: aubadvisoracr.azurecr.io
+             username: ${{ secrets.ACR_USERNAME }}
+             password: ${{ secrets.ACR_PASSWORD }}
+         
+         - run: |
+             docker build -t aubadvisoracr.azurecr.io/backend:${{ github.sha }} -f docker/backend/Dockerfile .
+             docker tag aubadvisoracr.azurecr.io/backend:${{ github.sha }} aubadvisoracr.azurecr.io/backend:latest
+             docker push aubadvisoracr.azurecr.io/backend:${{ github.sha }}
+             docker push aubadvisoracr.azurecr.io/backend:latest
+         
+         - name: Update deployment manifest
+           run: |
+             sed -i "s|image: aubadvisoracr.azurecr.io/backend:.*|image: aubadvisoracr.azurecr.io/backend:${{ github.sha }}|" k8s/base/backend/deployment.yaml
+             git config --global user.email "github-actions@github.com"
+             git config --global user.name "GitHub Actions"
+             git add k8s/base/backend/deployment.yaml
+             git commit -m "Update backend image to ${{ github.sha }}"
+             git push
+
+3. Repeat for all services
+   - Create similar workflows for frontend, supervisor, etc.
+   - Customize path triggers for each service
+
+## Phase 5: ArgoCD CD Configuration (2-3 hours)
+
+1. Create ArgoCD Application
+   # argocd-app.yaml
+   apiVersion: argoproj.io/v1alpha1
+   kind: Application
+   metadata:
+     name: aub-advisor
+     namespace: argocd
+   spec:
+     project: default
+     source:
+       repoURL: https://github.com/YOUR_USERNAME/YOUR_REPO.git
+       targetRevision: HEAD
+       path: k8s/overlays/prod
+     destination:
+       server: https://kubernetes.default.svc
+       namespace: aub-advisor
+     syncPolicy:
+       automated:
+         prune: true
+         selfHeal: true
+       syncOptions:
+       - CreateNamespace=true
+
+2. Apply ArgoCD application
+   kubectl apply -f argocd-app.yaml
+
+3. Set up blue-green deployment
+   - Configure ArgoCD to switch between blue/green environments
+   - Set up traffic management
+
+## Phase 6: Testing and Validation (4-5 hours)
+
+1. Test CI pipeline
+   - Make changes to each service
+   - Verify Docker images are built and pushed
+   - Check ArgoCD detects changes
+
+2. Test CD pipeline
+   - Verify deployments are created in Kubernetes
+   - Test blue-green switching mechanism
+   - Validate rollback capability
+
+3. Load testing
+   - Test system under load
+   - Verify scaling works properly
+
+## Phase 7: Documentation and Knowledge Transfer (2-3 hours)
+
+1. Document infrastructure
+   - Architecture diagrams
+   - Configuration details
+   - Credential management
+
+2. Create operational guides
+   - Deployment procedures
+   - Rollback process
+   - Troubleshooting steps
+
+3. Set up monitoring and alerting
+   - Configure Azure Monitor
+   - Set up relevant dashboards
+   - Establish alerting thresholds
+
+Total estimated time: 21-28 hours, accounting for LLM assistance and potential issues.
