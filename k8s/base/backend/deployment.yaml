@@ -14,6 +14,12 @@ spec:
     spec:
       containers:
       - name: backend
-        image: aubadvisoracr.azurecr.io/backend:v1
+        image: aubadvisoracr.azurecr.io/backend:latest
         ports:
         - containerPort: 8000
+        env:
+        - name: PINECONE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: pinecone-secret
+              key: PINECONE_API_KEY
