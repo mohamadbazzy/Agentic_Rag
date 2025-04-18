@@ -125,7 +125,7 @@ def supervisor(state: State):
     - Electrical and Computer Engineering (ECE): For queries specifically about electrical engineering, computer engineering, CCE or CSE tracks
     - Industrial Engineering and Management (ENMG): For queries specifically about industrial engineering, engineering management, or operations
     - Mechanical Engineering (MECH): For queries specifically about mechanical engineering, thermal systems, materials, or manufacturing
-    - MSFEA Advisor: For general engineering queries, faculty-wide policies, interdisciplinary programs, or when no specific department applies
+    - MSFEA Advisor: For general engineering queries, faculty-wide policies, interdisciplinary programs, or when no specific department applies MSFEA Advisor ALSO HAS ALL THE CALENDARS AND DATES OF MAIN UNIVERSITY EVENTS AND DEADLINES EXAMS SEMESTER BREAKS AND MORE....
     - Schedule Helper: For queries specifically about class schedules, course schedules, or class timetables or who is giving a specific class or at what time
 
     IMPORTANT GUIDELINES FOR ROUTING:

@@ -220,7 +220,7 @@ function extractScheduleData(content) {
     return null;
 }
 
-// Function to generate a visual schedule from the schedule data
+// Function to generate schedule template with a more visible calendar button
 function generateScheduleTemplate(scheduleData) {
     if (!scheduleData || !scheduleData.schedule || !scheduleData.schedule.length) {
         return null;
@@ -319,9 +319,9 @@ function generateScheduleTemplate(scheduleData) {
     weekViewContainer.appendChild(timetable);
     scheduleContainer.appendChild(weekViewContainer);
 
-    // Add download buttons
-    const downloadContainer = document.createElement('div');
-    downloadContainer.className = 'download-buttons';
+    // Add download and calendar buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'download-buttons';
     
     const downloadListBtn = document.createElement('button');
     downloadListBtn.className = 'download-schedule-btn';
@@ -342,12 +342,86 @@ function generateScheduleTemplate(scheduleData) {
             downloadScheduleAsImage(weekViewContainer, 'schedule-week-view');
         }, 100);
     };
-
-    downloadContainer.appendChild(downloadListBtn);
-    downloadContainer.appendChild(downloadWeekBtn);
-    scheduleContainer.appendChild(downloadContainer);
+    
+    // Add a prominent calendar button at the top
+    const calendarButtonTop = document.createElement('div');
+    calendarButtonTop.className = 'calendar-button-container';
+    calendarButtonTop.style.margin = '10px 0';
+    calendarButtonTop.style.textAlign = 'center';
+    
+    const outlookBtn = document.createElement('button');
+    outlookBtn.className = 'calendar-btn outlook-btn';
+    outlookBtn.style.backgroundColor = '#0078d4'; // Outlook blue
+    outlookBtn.style.color = 'white';
+    outlookBtn.style.padding = '10px 15px';
+    outlookBtn.style.border = 'none';
+    outlookBtn.style.borderRadius = '4px';
+    outlookBtn.style.cursor = 'pointer';
+    outlookBtn.style.fontSize = '16px';
+    outlookBtn.style.fontWeight = 'bold';
+    outlookBtn.innerHTML = '<i class="far fa-calendar-alt"></i> Add to Outlook Calendar';
+    outlookBtn.onclick = () => generateOutlookCalendarLink(scheduleData);
+    
+    calendarButtonTop.appendChild(outlookBtn);
+    
+    // Add the calendar button right after the header
+    scheduleContainer.insertBefore(calendarButtonTop, scheduleContainer.childNodes[1]);
 
     return scheduleContainer;
+}
+
+// Function to generate Outlook calendar link
+function generateOutlookCalendarLink(scheduleData) {
+    console.log("Generating Outlook calendar link for schedule:", scheduleData);
+    
+    if (!scheduleData || !scheduleData.schedule || !scheduleData.schedule.length) {
+        alert('No schedule data available to create calendar invite');
+        return;
+    }
+    
+    // Create subject line with all course codes
+    const courseCodes = scheduleData.schedule.map(course => course.course_code);
+    const subject = `Academic Schedule: ${courseCodes.join(', ')}`;
+    
+    // Create a body with the full schedule details
+    let body = "My Academic Schedule:\n\n";
+    scheduleData.schedule.forEach(course => {
+        body += `Course: ${course.course_code} - ${course.title || ''}\n`;
+        body += `Section: ${course.section || ''}\n`;
+        body += `Instructor: ${course.instructor || 'TBA'}\n`;
+        
+        // Add meeting times
+        course.meetings.forEach(meeting => {
+            const days = meeting.days.join(', ');
+            body += `- ${days} ${meeting.start_time} to ${meeting.end_time}\n`;
+            body += `  Location: ${meeting.location || 'TBA'}\n`;
+        });
+        body += "\n";
+    });
+    
+    // Get start and end dates (current academic term)
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() + 1); // Start tomorrow
+    
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 120); // Academic term ~4 months
+    
+    // Format dates for Outlook
+    const startDateStr = startDate.toISOString();
+    const endDateStr = endDate.toISOString();
+    
+    // Create Outlook Web link
+    const outlookLink = `https://outlook.office.com/calendar/action/compose?` +
+        `subject=${encodeURIComponent(subject)}&` +
+        `body=${encodeURIComponent(body)}&` +
+        `startdt=${encodeURIComponent(startDateStr)}&` +
+        `enddt=${encodeURIComponent(endDateStr)}`;
+    
+    console.log("Opening Outlook calendar link:", outlookLink);
+    
+    // Open the link in a new tab
+    window.open(outlookLink, '_blank');
 }
 
 // Function to toggle between schedule views
@@ -1244,3 +1318,16 @@ async function resetConversation() {
         addMessage("bot", "There was an error resetting the conversation. Please try again.", "MSFEA Advisor");
     }
 }
+
+// Add at the end of your script.js file
+console.log("Script loaded with Outlook calendar functionality");
+
+// Override the extractScheduleData function to log when schedule data is found
+const originalExtractScheduleData = extractScheduleData;
+extractScheduleData = function(content) {
+    const result = originalExtractScheduleData(content);
+    if (result) {
+        console.log("Schedule data extracted:", result);
+    }
+    return result;
+};

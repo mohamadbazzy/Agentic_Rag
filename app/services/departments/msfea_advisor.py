@@ -35,7 +35,6 @@ def msfea_advisor(state: State):
             search_query, 
             k=3,
             namespace="msfea_advisor_namespace",  # Explicitly specify namespace
-            filter={"type": "faculty_info"}  # Add a filter for faculty-wide info
         )
         
         logger.info(f"Found {len(msfea_docs)} documents in msfea_advisor_namespace")
@@ -66,6 +65,8 @@ def msfea_advisor(state: State):
     
     context_str = "\n".join([item["content"] for item in context])
     
+    logger.info(f"Constructed context_str: {context_str[:500]}...") # Log the context string (truncated)
+
     system_message = f"""
     You are the main academic advisor for the Maroun Semaan Faculty of Engineering and Architecture (MSFEA) at the American University of Beirut (AUB).
     
@@ -121,7 +122,11 @@ def msfea_advisor(state: State):
     
     Respond in a professional, helpful manner appropriate for an academic advisor at AUB.
     """
-    
+
+    logger.info(f"Final system_message (check for context): {system_message[:500]}...") # Log the final prompt (truncated)
+
+    # Assume LLM call happens shortly after this
+    # Example structure (actual call might differ slightly):
     messages = [{"role": "system", "content": system_message}] + state["messages"]
     
     # Get thread_id from configurable state if available (for conversation memory)
@@ -130,11 +135,16 @@ def msfea_advisor(state: State):
         config = state.get("configurable", {})
         if isinstance(config, dict):
             thread_id = config.get("thread_id")
-    
-    # Pass thread_id to maintain conversation context if available
+
+    # Invoke the LLM
     if thread_id:
-        response = llm.invoke(messages, config={"configurable": {"thread_id": thread_id}})
+        response = llm.invoke(messages, config={"configurable": {"thread_id": f"{thread_id}_msfea"}}) 
     else:
         response = llm.invoke(messages)
-    
-    return {"messages": response}
+
+    # Update the state with the response
+    state["messages"] = state["messages"] + [{"role": "assistant", "content": response.content}]
+    state["response"] = response.content  # Store the latest response
+    state["department"] = "MSFEA Advisor" # Set the department context
+
+    return state # Return the updated state

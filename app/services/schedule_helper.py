@@ -3,6 +3,8 @@ from app.core.config import OPENAI_API_KEY
 from app.models.schemas import State
 import json
 import logging
+import urllib.parse
+from datetime import datetime, timedelta
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -73,6 +75,54 @@ def get_course_info(course_names: list, courses_data: dict) -> list:
     logger.info(f"Found {len(course_info)} matching courses")
     return course_info
 
+def generate_outlook_calendar_link(schedule_data):
+    """
+    Generate an Outlook calendar invitation link for the given schedule.
+    Returns a URL that opens Outlook calendar with the schedule details pre-filled.
+    """
+    if not schedule_data or not schedule_data.get('schedule'):
+        return None
+    
+    # Find the earliest and latest dates in the schedule
+    # For simplicity, we'll create a single calendar event for the entire schedule
+    start_date = datetime.now() + timedelta(days=1)  # Start tomorrow
+    end_date = start_date + timedelta(days=120)  # Academic term ~4 months
+    
+    # Create a subject line with all course codes
+    course_codes = [course['course_code'] for course in schedule_data['schedule']]
+    subject = f"Academic Schedule: {', '.join(course_codes)}"
+    
+    # Create a body with the full schedule details
+    body = "My Academic Schedule:\n\n"
+    for course in schedule_data['schedule']:
+        body += f"Course: {course['course_code']} - {course.get('title', '')}\n"
+        body += f"Section: {course.get('section', '')}\n"
+        body += f"Instructor: {course.get('instructor', 'TBA')}\n"
+        
+        # Add meeting times
+        for meeting in course.get('meetings', []):
+            days = ", ".join(meeting.get('days', []))
+            body += f"- {days} {meeting.get('start_time', '')} to {meeting.get('end_time', '')}\n"
+            body += f"  Location: {meeting.get('location', 'TBA')}\n"
+        body += "\n"
+    
+    # URL encode parameters
+    subject_encoded = urllib.parse.quote(subject)
+    body_encoded = urllib.parse.quote(body)
+    start_date_str = start_date.strftime("%Y-%m-%dT%H:%M:%S")
+    end_date_str = end_date.strftime("%Y-%m-%dT%H:%M:%S")
+    
+    # Create Outlook web calendar link
+    outlook_link = (
+        f"https://outlook.office.com/calendar/action/compose?"
+        f"subject={subject_encoded}&"
+        f"body={body_encoded}&"
+        f"startdt={start_date_str}&"
+        f"enddt={end_date_str}"
+    )
+    
+    return outlook_link
+
 def schedule_helper(state: State):
     """
     Handle queries about course scheduling, conflicts, and classroom locations
@@ -137,6 +187,8 @@ def schedule_helper(state: State):
     Respond in a professional, helpful manner appropriate for a university scheduling assistant.
     
     IF ASKED ABOUT SCHEDULE YOUR JOB IS TO PROPOSE A SCHEDULE NOT TO STATE OPTIONS GIVE THE STUDENT THE BEST SCHEDULE POSSIBLE.
+    
+    After you create a schedule, tell the user they can add this schedule to their Outlook calendar using the calendar link that will appear below your response.
     """
     
     # Create JSON template instruction separately
