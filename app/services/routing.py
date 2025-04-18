@@ -11,10 +11,22 @@ def route_to_department(state: State):
     # Also check for invalid in the department name
     if "invalid" in department.lower():
         return "Invalid"
-    if any(term in department.lower() for term in ["schedule", "timetable", "class time", "course time", "scheduling", "class schedule", "course schedule", "class timetable", "course timetable"]):
-        return "Schedule Helper"
-    # Route to the appropriate department
-    if any(term in department.lower() for term in ["msfea advisor", "msfea", "general", "faculty", "advisor"]):
+
+    # Route to the appropriate department FIRST
+    if any(term in department.lower() for term in [
+  "msfea advisor", "msfea", "general", "faculty", "advisor", "dates", "end", "start", "calendar",
+  "semester",
+  "break",          # covers queries like "fall semester", "spring semester"
+  "exams",             # covers "final exams", "exam schedule"
+  "holidays",          # essential for breaks and religious holidays
+  "reading period",    # highly searched before exams
+  "vacation",          # includes "Christmas vacation", etc.
+  "graduation",        # commencement-related questions
+  "opening ceremony",  # specific institutional event
+  "commencement",      # graduation event
+  "finals",            # common student shorthand for final exams
+  "term dates"         # captures "term start/end" queries
+]):
         return "MSFEA Advisor"
     elif "chemical" in department:
         return "Chemical Engineering and Advanced Energy (CHEE)"
@@ -26,6 +38,9 @@ def route_to_department(state: State):
         return "Industrial Engineering and Management (ENMG)"
     elif any(term in department for term in ["ece", "electrical", "computer", "electronic"]):
         return "Electrical and Computer Engineering (ECE)"
+    # Check for schedule helper keywords AFTER specific departments
+    elif any(term in department.lower() for term in ["schedule", "timetable", "class time", "course time", "scheduling", "class schedule", "course schedule", "class timetable", "course timetable"]):
+        return "Schedule Helper"
     else:
         # Default to MSFEA Advisor if unclear
         return "MSFEA Advisor"

@@ -12,13 +12,15 @@ from app.services.tracks.cse import cse_track
 from app.services.tracks.ece import ece_track
 from app.services.tracks.cce import cce_track
 from app.services.routing import route_to_department, route_to_ece_track
-from app.services.schedule_helper import schedule_helper
+from app.services.schedule_helper import schedule_helper, generate_outlook_calendar_link
 from langchain_openai import ChatOpenAI
 from app.core.config import OPENAI_API_KEY
 from app.db.vector_store import vectorstore, get_agent_vectorstore
 from app.models.schemas import QueryResponse
 import logging
 from app.services.utils import ensure_compatible_state, get_last_user_message
+import re
+import json
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -109,6 +111,26 @@ def process_query(query_text: str, session_id: str = None) -> QueryResponse:
         # Extract the response content
         if "messages" in result and len(result["messages"]) > 0:
             response_content = result["messages"][-1].content
+            
+            # Check for schedule data and add Outlook calendar link if needed
+            # Check if there's a schedule in the response
+            schedule_match = re.search(r'```json\s*(\{[\s\S]*?\})\s*```', response_content)
+            if schedule_match:
+                try:
+                    schedule_data = json.loads(schedule_match.group(1))
+                    if schedule_data.get('is_schedule') == True:
+                        # Generate Outlook calendar link
+                        outlook_link = generate_outlook_calendar_link(schedule_data)
+                        
+                        # Add indication about calendar link to the response
+                        if outlook_link:
+                            # Keep the JSON intact for the frontend to parse
+                            response_content = response_content.replace(
+                                "```json", 
+                                "You can add this schedule to your Outlook calendar by clicking the 'Add to Outlook Calendar' button below.\n\n```json"
+                            )
+                except Exception as e:
+                    logger.error(f"Error processing schedule data: {str(e)}")
         else:
             response_content = "I'm sorry, I couldn't process your request."
         
