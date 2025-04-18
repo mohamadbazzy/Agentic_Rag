@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # Initialize OpenAI LLM
 llm = ChatOpenAI(
     api_key=OPENAI_API_KEY,
-    model_name="gpt-3.5-turbo"
+    model_name="gpt-4o"
 )
 
 # Get a dedicated vector store for MSFEA advisor

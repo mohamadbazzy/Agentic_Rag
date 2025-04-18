@@ -15,6 +15,7 @@ DEFAULT_NAMESPACE_CONFIG = {
     "chemical": ["chemical_namespace"],
     "civil": ["civil_namespace"],
     "ece": ["ece_namespace"],
+    "ece_track": ["ece_namespace"],
     "cse": ["cse_namespace"],
     "cce": ["cce_namespace"],
     "msfea_advisor": ["msfea_advisor_namespace"],

@@ -3,49 +3,51 @@ from app.core.config import OPENAI_API_KEY
 from app.models.schemas import State
 from app.db.vector_store import get_agent_vectorstore
 import logging
+import re
 
-# Set up logging
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI LLM
-llm = ChatOpenAI(
-    api_key=OPENAI_API_KEY,
-    model_name="gpt-3.5-turbo"
-)
-
-# Get a dedicated vector store for ECE department
+llm = ChatOpenAI(api_key=OPENAI_API_KEY, model_name="gpt-4o")
 ece_vectorstore = get_agent_vectorstore("ece")
 
 def ece_department(state: State):
-    """
-    Handle queries about the ECE department and determine which track within ECE
-    the query is about
-    """
     user_message = state["messages"][-1].content
     query_type = state.get("query_type", "General")
-    
-    # Always retrieve from ECE's namespace, regardless of passed context
+
+    course_match = re.search(r'(EECE)\s*(\d{3})', user_message, re.IGNORECASE)
+    course_code = f"{course_match.group(1)} {course_match.group(2)}" if course_match else None
+
     search_query = f"Electrical and Computer Engineering: {query_type} - {user_message}"
-    
+    context = []
+
     try:
-        # Debug output to track the search
         logger.info(f"Searching ece_namespace with query: {search_query}")
-        
-        # Ensure we're using the correct vectorstore and namespace
-        ece_docs = ece_vectorstore.similarity_search(
-            search_query, 
-            k=3,
-            namespace="ece_namespace",  # Explicitly specify namespace
-            filter={"department": "ece"}  # Add a filter for ECE department
-        )
-        
-        logger.info(f"Found {len(ece_docs)} documents in ece_namespace")
-        
-        if ece_docs:
-            context = [{"content": doc.page_content, "source": doc.metadata.get("source", "unknown")} 
-                    for doc in ece_docs]
+
+        if course_code:
+            logger.info(f"Detected course code: {course_code}")
+            retriever = ece_vectorstore.as_retriever(
+                search_kwargs={
+                    "filter": {"course_code": {"$eq": course_code}},
+                    "namespace": "ece_namespace",
+                    "k": 3
+                }
+            )
+            ece_docs = retriever.get_relevant_documents(search_query)
         else:
-            # Fallback to hardcoded information if no docs found
+            ece_docs = ece_vectorstore.similarity_search(
+                search_query,
+                k=3,
+                namespace="ece_namespace"
+            )
+
+        logger.info(f"Found {len(ece_docs)} documents in ece_namespace")
+
+        if ece_docs:
+            context = [
+                {"content": doc.page_content, "source": doc.metadata.get("source", "unknown")}
+                for doc in ece_docs
+            ]
+        else:
             logger.warning("No documents found in ece_namespace, using fallback content")
             context = [{
                 "content": """
@@ -55,17 +57,16 @@ def ece_department(state: State):
                 """,
                 "source": "fallback_info"
             }]
+
     except Exception as e:
-        logger.error(f"Error retrieving documents from ece_namespace: {str(e)}")
-        # Use fallback content in case of error
+        logger.error(f"Error retrieving documents: {str(e)}")
         context = [{
             "content": "Basic information about Electrical and Computer Engineering at AUB's MSFEA faculty.",
             "source": "error_fallback"
         }]
-    
-    context_str = "\n".join([item["content"] for item in context])
-    
-    # Determine which ECE track the query is about
+
+    context_str = "\n".join([c["content"] for c in context])
+
     prompt = f"""
     You are the academic advisor for the Electrical and Computer Engineering (ECE) department at AUB's MSFEA you can answer general questions about the department but if the question is about a specific track Return only the track abbreviation (CSE, CCE, or ECE) without any explanation..
 
@@ -85,26 +86,13 @@ def ece_department(state: State):
     5. ONLY choose CSE or CCE if the query is SPECIFICALLY about topics unique to those tracks.
     6. When in doubt, choose "ECE" rather than a specific track.
     7. Never force a query into CSE or CCE unless it is clearly about their specialized topics.
-
     """
-    
-    # Get thread_id from configurable state if available (for conversation memory)
-    thread_id = None
-    if hasattr(state, "get") and callable(state.get):
-        config = state.get("configurable", {})
-        if isinstance(config, dict):
-            thread_id = config.get("thread_id")
-    
-    # Pass thread_id to maintain conversation context if available
-    if thread_id:
-        track_response = llm.invoke([{"role": "user", "content": prompt}], config={"configurable": {"thread_id": thread_id}})
-    else:
-        track_response = llm.invoke([{"role": "user", "content": prompt}])
-    
-    track = track_response.content.strip().upper()  # Force to uppercase
-    
-    # Handle the case where a nonsense response might be returned
-    if track not in ["CSE", "CCE", "ECE"]:
-        track = "ECE"  # Default to ECE if invalid response
-    
-    return {"track": track}
+
+    thread_id = state.get("configurable", {}).get("thread_id") if hasattr(state, "get") else None
+    response = llm.invoke([{"role": "user", "content": prompt}], config={"configurable": {"thread_id": thread_id}} if thread_id else {})
+
+    track = response.content.strip().upper()
+    if track not in {"CSE", "CCE", "ECE"}:
+        track = "ECE"
+
+    return {"track": track, "documents": context}
