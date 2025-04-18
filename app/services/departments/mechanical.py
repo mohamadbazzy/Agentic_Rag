@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 # Initialize OpenAI LLM
 llm = ChatOpenAI(
     api_key=OPENAI_API_KEY,
-    model_name="gpt-3.5-turbo"
+    model_name="gpt-4o"
 )
 
 # Get a dedicated vector store for mechanical department
@@ -33,8 +33,7 @@ def mechanical_department(state: State):
         mech_docs = mechanical_vectorstore.similarity_search(
             search_query, 
             k=3,
-            namespace="mechanical_namespace",  # Explicitly specify namespace
-            filter={"department": "mechanical"}  # Add a filter for mechanical department
+            namespace="mechanical_namespace"  # Only specify namespace, no filter
         )
         
         logger.info(f"Found {len(mech_docs)} documents in mechanical_namespace")

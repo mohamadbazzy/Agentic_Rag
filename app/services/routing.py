@@ -2,9 +2,13 @@ from app.models.schemas import State
 
 def route_to_department(state: State):
     """Route to the appropriate department based on the determined department"""
+    # Check if the query was marked as invalid by the supervisor
+    if state.get("is_valid") is False:
+        return "Invalid"
+        
     department = state.get("department", "").lower()
     
-    # Handle invalid queries
+    # Also check for invalid in the department name
     if "invalid" in department.lower():
         return "Invalid"
     if any(term in department.lower() for term in ["schedule", "timetable", "class time", "course time", "scheduling", "class schedule", "course schedule", "class timetable", "course timetable"]):

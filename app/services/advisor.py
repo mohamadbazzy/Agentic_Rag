@@ -178,6 +178,7 @@ def build_graph():
     graph.add_node("cce", cce_track)
     graph.add_node("ece_track", ece_track)
     graph.add_node("schedule_helper", schedule_helper)
+    graph.add_node("invalid_handler", invalid_query_handler)  # Add the new node
     
     # Define edges
     graph.add_edge(START, "supervisor")
@@ -192,9 +193,12 @@ def build_graph():
             "Electrical and Computer Engineering (ECE)": "ece",
             "MSFEA Advisor": "msfea_advisor",
             "Schedule Helper": "schedule_helper",
-            "Invalid": END
+            "Invalid": "invalid_handler"  # Route to invalid_handler instead of END
         }
     )
+    
+    # Connect invalid_handler to END
+    graph.add_edge("invalid_handler", END)
     
     # Add conditional edges for ECE routes
     graph.add_conditional_edges(
@@ -302,7 +306,8 @@ def determine_department_from_path(path):
         "ece": "Electrical & Computer",
         "cse": "Computer Science Engineering",
         "cce": "Computer & Communications Engineering",
-        "industrial": "Industrial Engineering"
+        "industrial": "Industrial Engineering",
+        "invalid_handler": "Error Handler"
     }
     
     # Check for department in path
@@ -311,3 +316,17 @@ def determine_department_from_path(path):
             department = department_map[node]
     
     return department
+
+def invalid_query_handler(state: State):
+    """Handle invalid queries and return appropriate error messages"""
+    # Check if there's a response from the supervisor
+    if "response" in state:
+        # Add a message to the conversation with the response from the supervisor
+        state["messages"].append({"role": "assistant", "content": state["response"]})
+    else:
+        # Fallback error message
+        state["messages"].append({
+            "role": "assistant", 
+            "content": "Invalid query as the MSFEA advisor I can't answer such questions. Please ask a question related to engineering programs, courses, admissions, or career options."
+        })
+    return state
