@@ -12,7 +12,7 @@ from app.services.tracks.cse import cse_track
 from app.services.tracks.ece import ece_track
 from app.services.tracks.cce import cce_track
 from app.services.routing import route_to_department, route_to_ece_track
-from app.services.schedule_helper import schedule_helper, generate_outlook_calendar_link
+from app.services.schedule_helper import schedule_helper
 from langchain_openai import ChatOpenAI
 from app.core.config import OPENAI_API_KEY
 from app.db.vector_store import vectorstore, get_agent_vectorstore
@@ -36,6 +36,27 @@ advisor_vectorstore = get_agent_vectorstore("advisor")
 
 # Create a memory saver for persistent conversation history
 memory = MemorySaver()
+
+# Add a function to detect calendar integration requests
+def detect_calendar_request(message):
+    """
+    Detect if the user is asking to add their schedule to Google Calendar
+    
+    Args:
+        message (str): The user's message
+        
+    Returns:
+        bool: True if calendar integration is requested
+    """
+    # Keywords related to calendar integration
+    calendar_keywords = [
+        "add to google", "google calendar", "sync calendar", "add to calendar",
+        "put in google", "save to google", "export to google", "google integration",
+        "calendar integration", "sync with google", "add schedule to google"
+    ]
+    
+    message_lower = message.lower()
+    return any(keyword in message_lower for keyword in calendar_keywords)
 
 def process_query(query_text: str, session_id: str = None) -> QueryResponse:
     """
@@ -112,23 +133,17 @@ def process_query(query_text: str, session_id: str = None) -> QueryResponse:
         if "messages" in result and len(result["messages"]) > 0:
             response_content = result["messages"][-1].content
             
-            # Check for schedule data and add Outlook calendar link if needed
-            # Check if there's a schedule in the response
+            # Check for schedule data
             schedule_match = re.search(r'```json\s*(\{[\s\S]*?\})\s*```', response_content)
             if schedule_match:
                 try:
                     schedule_data = json.loads(schedule_match.group(1))
                     if schedule_data.get('is_schedule') == True:
-                        # Generate Outlook calendar link
-                        outlook_link = generate_outlook_calendar_link(schedule_data)
-                        
-                        # Add indication about calendar link to the response
-                        if outlook_link:
-                            # Keep the JSON intact for the frontend to parse
-                            response_content = response_content.replace(
-                                "```json", 
-                                "You can add this schedule to your Outlook calendar by clicking the 'Add to Outlook Calendar' button below.\n\n```json"
-                            )
+                        # Add indication about Google Calendar
+                        response_content = response_content.replace(
+                            "```json", 
+                            "You can add this schedule to your Google Calendar by clicking the 'Add to Google Calendar' button below.\n\n```json"
+                        )
                 except Exception as e:
                     logger.error(f"Error processing schedule data: {str(e)}")
         else:
@@ -137,6 +152,25 @@ def process_query(query_text: str, session_id: str = None) -> QueryResponse:
         # Get the routing path
         path = result.get("path", [])
         department = determine_department_from_path(path)
+        
+        # Check if the user is asking to add their schedule to Google Calendar
+        if detect_calendar_request(query_text):
+            # Create a response with instructions on how to add to Google Calendar
+            calendar_info = {
+                "content": (
+                    "I'd be happy to help you add your class schedule to your Google Calendar! "
+                    "To do this, I need your permission to access your Google Calendar. "
+                    "\n\n"
+                    "First, let me know if you have a specific schedule you want to add, or if you want "
+                    "to add the schedule we've discussed. When you're ready, click the 'Add to Google Calendar' "
+                    "button that appears with your schedule, and you'll be asked to sign in to your Google account. "
+                    "\n\n"
+                    "Once you grant permission, I'll add all your classes as recurring events to your calendar. "
+                    "I'll also check for any potential conflicts with your existing calendar events."
+                ),
+                "department": "MSFEA Advisor"
+            }
+            return calendar_info
         
         # Create response with path info
         return QueryResponse(

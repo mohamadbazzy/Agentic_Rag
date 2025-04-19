@@ -349,20 +349,20 @@ function generateScheduleTemplate(scheduleData) {
     calendarButtonTop.style.margin = '10px 0';
     calendarButtonTop.style.textAlign = 'center';
     
-    const outlookBtn = document.createElement('button');
-    outlookBtn.className = 'calendar-btn outlook-btn';
-    outlookBtn.style.backgroundColor = '#0078d4'; // Outlook blue
-    outlookBtn.style.color = 'white';
-    outlookBtn.style.padding = '10px 15px';
-    outlookBtn.style.border = 'none';
-    outlookBtn.style.borderRadius = '4px';
-    outlookBtn.style.cursor = 'pointer';
-    outlookBtn.style.fontSize = '16px';
-    outlookBtn.style.fontWeight = 'bold';
-    outlookBtn.innerHTML = '<i class="far fa-calendar-alt"></i> Add to Outlook Calendar';
-    outlookBtn.onclick = () => generateOutlookCalendarLink(scheduleData);
+    const googleBtn = document.createElement('button');
+    googleBtn.className = 'calendar-btn google-btn';
+    googleBtn.style.backgroundColor = '#4285F4'; // Google blue
+    googleBtn.style.color = 'white';
+    googleBtn.style.padding = '10px 15px';
+    googleBtn.style.border = 'none';
+    googleBtn.style.borderRadius = '4px';
+    googleBtn.style.cursor = 'pointer';
+    googleBtn.style.fontSize = '16px';
+    googleBtn.style.fontWeight = 'bold';
+    googleBtn.innerHTML = '<i class="far fa-calendar-alt"></i> Add to Google Calendar';
+    googleBtn.onclick = () => addToGoogleCalendar(scheduleData);
     
-    calendarButtonTop.appendChild(outlookBtn);
+    calendarButtonTop.appendChild(googleBtn);
     
     // Add the calendar button right after the header
     scheduleContainer.insertBefore(calendarButtonTop, scheduleContainer.childNodes[1]);
@@ -370,58 +370,379 @@ function generateScheduleTemplate(scheduleData) {
     return scheduleContainer;
 }
 
-// Function to generate Outlook calendar link
-function generateOutlookCalendarLink(scheduleData) {
-    console.log("Generating Outlook calendar link for schedule:", scheduleData);
+// Function to add schedule to Google Calendar
+function addToGoogleCalendar(scheduleData) {
+    console.log("Adding schedule to Google Calendar:", scheduleData);
     
     if (!scheduleData || !scheduleData.schedule || !scheduleData.schedule.length) {
-        alert('No schedule data available to create calendar invite');
+        alert('No schedule data available to add to calendar');
         return;
     }
     
-    // Create subject line with all course codes
-    const courseCodes = scheduleData.schedule.map(course => course.course_code);
-    const subject = `Academic Schedule: ${courseCodes.join(', ')}`;
-    
-    // Create a body with the full schedule details
-    let body = "My Academic Schedule:\n\n";
-    scheduleData.schedule.forEach(course => {
-        body += `Course: ${course.course_code} - ${course.title || ''}\n`;
-        body += `Section: ${course.section || ''}\n`;
-        body += `Instructor: ${course.instructor || 'TBA'}\n`;
+    // Directly generate calendar links without showing options
+    generateGoogleCalendarLinks(scheduleData);
+}
+
+// Function to generate and open a full schedule link
+async function generateFullScheduleLink(scheduleData) {
+    try {
+        // Show loading state
+        const loadingModal = document.createElement('div');
+        loadingModal.className = 'loading-modal';
+        loadingModal.style.position = 'fixed';
+        loadingModal.style.top = '0';
+        loadingModal.style.left = '0';
+        loadingModal.style.right = '0';
+        loadingModal.style.bottom = '0';
+        loadingModal.style.backgroundColor = 'rgba(0,0,0,0.7)';
+        loadingModal.style.zIndex = '1000';
+        loadingModal.style.display = 'flex';
+        loadingModal.style.alignItems = 'center';
+        loadingModal.style.justifyContent = 'center';
         
-        // Add meeting times
-        course.meetings.forEach(meeting => {
-            const days = meeting.days.join(', ');
-            body += `- ${days} ${meeting.start_time} to ${meeting.end_time}\n`;
-            body += `  Location: ${meeting.location || 'TBA'}\n`;
+        const loadingContent = document.createElement('div');
+        loadingContent.style.backgroundColor = 'white';
+        loadingContent.style.borderRadius = '8px';
+        loadingContent.style.padding = '20px';
+        loadingContent.style.textAlign = 'center';
+        loadingContent.innerHTML = `
+            <h3>Generating Calendar Link...</h3>
+            <div class="spinner" style="margin: 10px auto; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite;"></div>
+        `;
+        
+        // Add the spinner animation style
+        const style = document.createElement('style');
+        style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+        
+        loadingModal.appendChild(loadingContent);
+        document.body.appendChild(loadingModal);
+        
+        // Call the backend to generate the all-in-one link
+        const response = await fetch('/api/gcalendar/generate-all-link', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                schedule_data: scheduleData
+            })
         });
-        body += "\n";
+        
+        // Remove loading modal
+        document.body.removeChild(loadingModal);
+        
+        if (!response.ok) {
+            throw new Error('Failed to generate calendar link');
+        }
+        
+        const result = await response.json();
+        
+        if (result.status === 'success' && result.link) {
+            // Open the link in a new tab
+            window.open(result.link, '_blank');
+            
+            // Show a modal with next steps information
+            const infoModal = document.createElement('div');
+            infoModal.className = 'info-modal';
+            infoModal.style.position = 'fixed';
+            infoModal.style.top = '0';
+            infoModal.style.left = '0';
+            infoModal.style.right = '0';
+            infoModal.style.bottom = '0';
+            infoModal.style.backgroundColor = 'rgba(0,0,0,0.7)';
+            infoModal.style.zIndex = '1000';
+            infoModal.style.display = 'flex';
+            infoModal.style.alignItems = 'center';
+            infoModal.style.justifyContent = 'center';
+            
+            const infoContent = document.createElement('div');
+            infoContent.style.backgroundColor = 'white';
+            infoContent.style.borderRadius = '8px';
+            infoContent.style.padding = '20px';
+            infoContent.style.maxWidth = '500px';
+            infoContent.style.width = '90%';
+            
+            infoContent.innerHTML = `
+                <h3>Calendar Event Created</h3>
+                <p>A complete overview of your schedule has been created in a new tab.</p>
+                <p>This summary event includes all your class details. Google Calendar shows one event at a time, so we've created a summary with all your schedule information.</p>
+                <p>If you want to add individual class sessions as separate events instead, use the "Get Calendar Links" option.</p>
+                <button id="close-info-btn" style="margin-top: 15px; padding: 8px 16px; background-color: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%;">Close</button>
+            `;
+            
+            infoModal.appendChild(infoContent);
+            document.body.appendChild(infoModal);
+            
+            // Add event listener to close button
+            document.getElementById('close-info-btn').addEventListener('click', () => {
+                document.body.removeChild(infoModal);
+            });
+        } else {
+            alert('Failed to generate a calendar link for your schedule.');
+        }
+    } catch (error) {
+        console.error('Error generating full schedule link:', error);
+        alert('Error generating Google Calendar link');
+    }
+}
+
+// Start Google OAuth authentication flow
+function startGoogleAuth(scheduleData) {
+    // Save the schedule data to localStorage to retrieve after OAuth callback
+    localStorage.setItem('pendingGoogleSchedule', JSON.stringify(scheduleData));
+    
+    // Request the auth URL from our backend
+    fetch('/api/gcalendar/auth', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to get authentication URL');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Redirect the user to Google's consent screen
+        window.location.href = data.auth_url;
+    })
+    .catch(error => {
+        console.error('Error starting Google authentication:', error);
+        alert('Failed to connect to Google Calendar. Please try again later.');
     });
+}
+
+// Handle the Google OAuth callback
+function handleGoogleCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const scheduleData = JSON.parse(localStorage.getItem('pendingGoogleSchedule'));
     
-    // Get start and end dates (current academic term)
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() + 1); // Start tomorrow
+    if (!code || !scheduleData) {
+        alert('Failed to authenticate with Google Calendar');
+        return;
+    }
     
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 120); // Academic term ~4 months
+    // Show loading indicator
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'google-loading-indicator';
+    loadingEl.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+            <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
+                <h3>Adding events to Google Calendar...</h3>
+                <p>Please wait, this may take a moment.</p>
+                <div class="spinner" style="margin: 10px auto; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite;"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingEl);
     
-    // Format dates for Outlook
-    const startDateStr = startDate.toISOString();
-    const endDateStr = endDate.toISOString();
+    // Add the style for the spinner animation
+    const style = document.createElement('style');
+    style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
     
-    // Create Outlook Web link
-    const outlookLink = `https://outlook.office.com/calendar/action/compose?` +
-        `subject=${encodeURIComponent(subject)}&` +
-        `body=${encodeURIComponent(body)}&` +
-        `startdt=${encodeURIComponent(startDateStr)}&` +
-        `enddt=${encodeURIComponent(endDateStr)}`;
-    
-    console.log("Opening Outlook calendar link:", outlookLink);
-    
-    // Open the link in a new tab
-    window.open(outlookLink, '_blank');
+    // Exchange the code for a token and add the events
+    fetch('/api/gcalendar/add-events', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            code: code,
+            schedule: scheduleData.schedule
+        }),
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to add events to Google Calendar');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Remove the loading indicator
+        document.body.removeChild(loadingEl);
+        
+        // Clear the pending schedule from localStorage
+        localStorage.removeItem('pendingGoogleSchedule');
+        
+        // Remove the code parameter from the URL to prevent re-authentication on page refresh
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+        
+        // Show success message
+        alert(`Successfully added ${data.added_count} events to your Google Calendar.`);
+    })
+    .catch(error => {
+        console.error('Error adding events to Google Calendar:', error);
+        document.body.removeChild(loadingEl);
+        alert('Failed to add events to Google Calendar. Please try again later.');
+        
+        // Clear localStorage to prevent further attempts with the same data
+        localStorage.removeItem('pendingGoogleSchedule');
+        
+        // Remove the code parameter from the URL
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+    });
+}
+
+// Fallback method for generating direct Google Calendar links
+async function generateGoogleCalendarLinks(scheduleData) {
+    try {
+        // Get direct links from backend
+        const response = await fetch('/api/gcalendar/generate-links', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                schedule_data: scheduleData
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success' && result.links && result.links.length > 0) {
+            // Create modal to display links
+            const modal = document.createElement('div');
+            modal.className = 'calendar-links-modal';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.right = '0';
+            modal.style.bottom = '0';
+            modal.style.backgroundColor = 'rgba(0,0,0,0.7)';
+            modal.style.zIndex = '1000';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            
+            // Create content container
+            const content = document.createElement('div');
+            content.style.backgroundColor = 'white';
+            content.style.borderRadius = '8px';
+            content.style.padding = '20px';
+            content.style.maxWidth = '600px';
+            content.style.width = '90%';
+            content.style.maxHeight = '80vh';
+            content.style.overflowY = 'auto';
+            
+            // Add header
+            const header = document.createElement('h3');
+            header.textContent = 'Add to Google Calendar';
+            header.style.marginTop = '0';
+            content.appendChild(header);
+            
+            // Add description
+            const description = document.createElement('p');
+            description.textContent = 'Click on each link below to add the course section to your Google Calendar:';
+            content.appendChild(description);
+            
+            // Create a table for better presentation
+            const table = document.createElement('table');
+            table.className = 'calendar-links-table';
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            table.style.margin = '15px 0';
+            
+            // Add table header
+            const tableHead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            ['Course', 'Section', 'Days', 'Time', 'Add to Calendar'].forEach(title => {
+                const th = document.createElement('th');
+                th.textContent = title;
+                th.style.textAlign = 'left';
+                th.style.padding = '8px';
+                th.style.borderBottom = '1px solid #ddd';
+                headerRow.appendChild(th);
+            });
+            tableHead.appendChild(headerRow);
+            table.appendChild(tableHead);
+            
+            // Add table body
+            const tableBody = document.createElement('tbody');
+            result.links.forEach(link => {
+                const row = document.createElement('tr');
+                
+                // Course cell
+                const courseCell = document.createElement('td');
+                courseCell.textContent = link.course;
+                courseCell.style.padding = '8px';
+                courseCell.style.borderBottom = '1px solid #ddd';
+                row.appendChild(courseCell);
+                
+                // Section cell
+                const sectionCell = document.createElement('td');
+                sectionCell.textContent = link.section || 'N/A';
+                sectionCell.style.padding = '8px';
+                sectionCell.style.borderBottom = '1px solid #ddd';
+                row.appendChild(sectionCell);
+                
+                // Days cell
+                const daysCell = document.createElement('td');
+                daysCell.textContent = link.days;
+                daysCell.style.padding = '8px';
+                daysCell.style.borderBottom = '1px solid #ddd';
+                row.appendChild(daysCell);
+                
+                // Time cell
+                const timeCell = document.createElement('td');
+                timeCell.textContent = link.time;
+                timeCell.style.padding = '8px';
+                timeCell.style.borderBottom = '1px solid #ddd';
+                row.appendChild(timeCell);
+                
+                // Add link cell
+                const linkCell = document.createElement('td');
+                linkCell.style.padding = '8px';
+                linkCell.style.borderBottom = '1px solid #ddd';
+                
+                const addButton = document.createElement('a');
+                addButton.href = link.url;
+                addButton.target = '_blank';
+                addButton.textContent = 'Add to Calendar';
+                addButton.style.display = 'inline-block';
+                addButton.style.padding = '5px 10px';
+                addButton.style.backgroundColor = '#4285F4';
+                addButton.style.color = 'white';
+                addButton.style.textDecoration = 'none';
+                addButton.style.borderRadius = '4px';
+                linkCell.appendChild(addButton);
+                
+                row.appendChild(linkCell);
+                tableBody.appendChild(row);
+            });
+            
+            table.appendChild(tableBody);
+            content.appendChild(table);
+            
+            // Add close button
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = 'Close';
+            closeBtn.style.marginTop = '20px';
+            closeBtn.style.padding = '8px 16px';
+            closeBtn.style.backgroundColor = '#f1f1f1';
+            closeBtn.style.border = 'none';
+            closeBtn.style.borderRadius = '4px';
+            closeBtn.style.cursor = 'pointer';
+            closeBtn.onclick = () => {
+                document.body.removeChild(modal);
+            };
+            content.appendChild(closeBtn);
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        } else {
+            alert('No calendar links available for this schedule');
+        }
+    } catch (error) {
+        console.error('Error generating calendar links:', error);
+        alert('Error generating Google Calendar links');
+    }
 }
 
 // Function to toggle between schedule views
@@ -1212,6 +1533,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Auto-focus the input field for immediate typing
     userInput.focus();
+
+    // Check for URL query parameters on page load
+    checkUrlParams();
 });
 
 // Send message to the backend
@@ -1320,7 +1644,7 @@ async function resetConversation() {
 }
 
 // Add at the end of your script.js file
-console.log("Script loaded with Outlook calendar functionality");
+console.log("Script loaded with Google Calendar functionality");
 
 // Override the extractScheduleData function to log when schedule data is found
 const originalExtractScheduleData = extractScheduleData;
@@ -1331,3 +1655,113 @@ extractScheduleData = function(content) {
     }
     return result;
 };
+
+// Check for URL query parameters on page load
+function checkUrlParams() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Check for auth success parameter
+    if (urlParams.has('auth') && urlParams.get('auth') === 'success') {
+        // Show success notification
+        alert('Successfully authenticated with Google Calendar! You can now add your schedule.');
+        
+        // Clean URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+    }
+    
+    // Check for error parameters
+    if (urlParams.has('error')) {
+        const errorType = urlParams.get('error');
+        let errorMessage = 'An error occurred with Google Calendar authentication.';
+        
+        switch(errorType) {
+            case 'auth_failed':
+                errorMessage = 'Authentication with Google Calendar failed.';
+                break;
+            case 'no_code':
+                errorMessage = 'No authorization code received from Google.';
+                break;
+            case 'token_failed':
+                errorMessage = 'Failed to obtain access token from Google.';
+                break;
+            case 'server_error':
+                errorMessage = 'A server error occurred during Google Calendar authentication.';
+                break;
+        }
+        
+        alert(errorMessage);
+        
+        // Clean URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+    }
+    
+    // Continue with normal callback handling if there's a code and pendingGoogleSchedule
+    if (urlParams.has('code') && localStorage.getItem('pendingGoogleSchedule')) {
+        handleGoogleCallback();
+    }
+}
+
+// Function to display calendar links
+function displayCalendarLinks(links) {
+    const container = document.createElement('div');
+    container.className = 'calendar-links-container';
+    
+    // Create a table to display the links
+    const table = document.createElement('table');
+    table.className = 'table table-striped';
+    
+    // Create table header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Course', 'Section', 'Days', 'Time', 'Add to Calendar'].forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    
+    // Create table body
+    const tbody = document.createElement('tbody');
+    links.forEach(link => {
+        const row = document.createElement('tr');
+        
+        // Course column
+        const courseCell = document.createElement('td');
+        courseCell.textContent = link.course;
+        row.appendChild(courseCell);
+        
+        // Section column
+        const sectionCell = document.createElement('td');
+        sectionCell.textContent = link.section || 'N/A';
+        row.appendChild(sectionCell);
+        
+        // Days column
+        const daysCell = document.createElement('td');
+        daysCell.textContent = link.days;
+        row.appendChild(daysCell);
+        
+        // Time column
+        const timeCell = document.createElement('td');
+        timeCell.textContent = link.time;
+        row.appendChild(timeCell);
+        
+        // Add to Calendar button column
+        const buttonCell = document.createElement('td');
+        const addButton = document.createElement('a');
+        addButton.href = link.url;
+        addButton.target = '_blank';
+        addButton.className = 'btn btn-sm btn-primary';
+        addButton.innerHTML = '<i class="far fa-calendar-plus"></i> Add';
+        buttonCell.appendChild(addButton);
+        row.appendChild(buttonCell);
+        
+        tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    container.appendChild(table);
+    
+    return container;
+}
