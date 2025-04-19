@@ -379,87 +379,112 @@ function addToGoogleCalendar(scheduleData) {
         return;
     }
     
-    // Show options to the user
-    const optionsModal = document.createElement('div');
-    optionsModal.className = 'calendar-options-modal';
-    optionsModal.style.position = 'fixed';
-    optionsModal.style.top = '0';
-    optionsModal.style.left = '0';
-    optionsModal.style.right = '0';
-    optionsModal.style.bottom = '0';
-    optionsModal.style.backgroundColor = 'rgba(0,0,0,0.7)';
-    optionsModal.style.zIndex = '1000';
-    optionsModal.style.display = 'flex';
-    optionsModal.style.alignItems = 'center';
-    optionsModal.style.justifyContent = 'center';
-    
-    const content = document.createElement('div');
-    content.style.backgroundColor = 'white';
-    content.style.borderRadius = '8px';
-    content.style.padding = '20px';
-    content.style.maxWidth = '500px';
-    content.style.width = '90%';
-    
-    const header = document.createElement('h3');
-    header.textContent = 'Add to Google Calendar';
-    header.style.marginTop = '0';
-    content.appendChild(header);
-    
-    const description = document.createElement('p');
-    description.textContent = 'Choose how you would like to add this schedule to your Google Calendar:';
-    content.appendChild(description);
-    
-    // Option 1: Direct links
-    const directLinkBtn = document.createElement('button');
-    directLinkBtn.textContent = 'Get Calendar Links';
-    directLinkBtn.style.margin = '10px 0';
-    directLinkBtn.style.padding = '10px 15px';
-    directLinkBtn.style.backgroundColor = '#4285F4';
-    directLinkBtn.style.color = 'white';
-    directLinkBtn.style.border = 'none';
-    directLinkBtn.style.borderRadius = '4px';
-    directLinkBtn.style.width = '100%';
-    directLinkBtn.style.cursor = 'pointer';
-    directLinkBtn.onclick = () => {
-        document.body.removeChild(optionsModal);
-        generateGoogleCalendarLinks(scheduleData);
-    };
-    content.appendChild(directLinkBtn);
-    
-    // Option 2: Connect to Google
-    const connectBtn = document.createElement('button');
-    connectBtn.textContent = 'Connect to Google Calendar';
-    connectBtn.style.margin = '10px 0';
-    connectBtn.style.padding = '10px 15px';
-    connectBtn.style.backgroundColor = '#34A853';
-    connectBtn.style.color = 'white';
-    connectBtn.style.border = 'none';
-    connectBtn.style.borderRadius = '4px';
-    connectBtn.style.width = '100%';
-    connectBtn.style.cursor = 'pointer';
-    connectBtn.onclick = () => {
-        document.body.removeChild(optionsModal);
-        startGoogleAuth(scheduleData);
-    };
-    content.appendChild(connectBtn);
-    
-    // Cancel button
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.style.margin = '10px 0';
-    cancelBtn.style.padding = '10px 15px';
-    cancelBtn.style.backgroundColor = '#f1f1f1';
-    cancelBtn.style.border = 'none';
-    cancelBtn.style.borderRadius = '4px';
-    cancelBtn.style.width = '100%';
-    cancelBtn.style.cursor = 'pointer';
-    cancelBtn.onclick = () => {
-        document.body.removeChild(optionsModal);
-    };
-    content.appendChild(cancelBtn);
-    
-    optionsModal.appendChild(content);
-    document.body.appendChild(optionsModal);
+    // Directly generate calendar links without showing options
+    generateGoogleCalendarLinks(scheduleData);
+}
+
+// Function to generate and open a full schedule link
+async function generateFullScheduleLink(scheduleData) {
+    try {
+        // Show loading state
+        const loadingModal = document.createElement('div');
+        loadingModal.className = 'loading-modal';
+        loadingModal.style.position = 'fixed';
+        loadingModal.style.top = '0';
+        loadingModal.style.left = '0';
+        loadingModal.style.right = '0';
+        loadingModal.style.bottom = '0';
+        loadingModal.style.backgroundColor = 'rgba(0,0,0,0.7)';
+        loadingModal.style.zIndex = '1000';
+        loadingModal.style.display = 'flex';
+        loadingModal.style.alignItems = 'center';
+        loadingModal.style.justifyContent = 'center';
+        
+        const loadingContent = document.createElement('div');
+        loadingContent.style.backgroundColor = 'white';
+        loadingContent.style.borderRadius = '8px';
+        loadingContent.style.padding = '20px';
+        loadingContent.style.textAlign = 'center';
+        loadingContent.innerHTML = `
+            <h3>Generating Calendar Link...</h3>
+            <div class="spinner" style="margin: 10px auto; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite;"></div>
+        `;
+        
+        // Add the spinner animation style
+        const style = document.createElement('style');
+        style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+        
+        loadingModal.appendChild(loadingContent);
+        document.body.appendChild(loadingModal);
+        
+        // Call the backend to generate the all-in-one link
+        const response = await fetch('/api/gcalendar/generate-all-link', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                schedule_data: scheduleData
+            })
+        });
+        
+        // Remove loading modal
+        document.body.removeChild(loadingModal);
+        
+        if (!response.ok) {
+            throw new Error('Failed to generate calendar link');
+        }
+        
+        const result = await response.json();
+        
+        if (result.status === 'success' && result.link) {
+            // Open the link in a new tab
+            window.open(result.link, '_blank');
+            
+            // Show a modal with next steps information
+            const infoModal = document.createElement('div');
+            infoModal.className = 'info-modal';
+            infoModal.style.position = 'fixed';
+            infoModal.style.top = '0';
+            infoModal.style.left = '0';
+            infoModal.style.right = '0';
+            infoModal.style.bottom = '0';
+            infoModal.style.backgroundColor = 'rgba(0,0,0,0.7)';
+            infoModal.style.zIndex = '1000';
+            infoModal.style.display = 'flex';
+            infoModal.style.alignItems = 'center';
+            infoModal.style.justifyContent = 'center';
+            
+            const infoContent = document.createElement('div');
+            infoContent.style.backgroundColor = 'white';
+            infoContent.style.borderRadius = '8px';
+            infoContent.style.padding = '20px';
+            infoContent.style.maxWidth = '500px';
+            infoContent.style.width = '90%';
+            
+            infoContent.innerHTML = `
+                <h3>Calendar Event Created</h3>
+                <p>A complete overview of your schedule has been created in a new tab.</p>
+                <p>This summary event includes all your class details. Google Calendar shows one event at a time, so we've created a summary with all your schedule information.</p>
+                <p>If you want to add individual class sessions as separate events instead, use the "Get Calendar Links" option.</p>
+                <button id="close-info-btn" style="margin-top: 15px; padding: 8px 16px; background-color: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%;">Close</button>
+            `;
+            
+            infoModal.appendChild(infoContent);
+            document.body.appendChild(infoModal);
+            
+            // Add event listener to close button
+            document.getElementById('close-info-btn').addEventListener('click', () => {
+                document.body.removeChild(infoModal);
+            });
+        } else {
+            alert('Failed to generate a calendar link for your schedule.');
+        }
+    } catch (error) {
+        console.error('Error generating full schedule link:', error);
+        alert('Error generating Google Calendar link');
+    }
 }
 
 // Start Google OAuth authentication flow
@@ -1508,6 +1533,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Auto-focus the input field for immediate typing
     userInput.focus();
+
+    // Check for URL query parameters on page load
+    checkUrlParams();
 });
 
 // Send message to the backend
@@ -1628,13 +1656,52 @@ extractScheduleData = function(content) {
     return result;
 };
 
-// Check for Google callback when page loads
-document.addEventListener('DOMContentLoaded', function() {
+// Check for URL query parameters on page load
+function checkUrlParams() {
     const urlParams = new URLSearchParams(window.location.search);
+    
+    // Check for auth success parameter
+    if (urlParams.has('auth') && urlParams.get('auth') === 'success') {
+        // Show success notification
+        alert('Successfully authenticated with Google Calendar! You can now add your schedule.');
+        
+        // Clean URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+    }
+    
+    // Check for error parameters
+    if (urlParams.has('error')) {
+        const errorType = urlParams.get('error');
+        let errorMessage = 'An error occurred with Google Calendar authentication.';
+        
+        switch(errorType) {
+            case 'auth_failed':
+                errorMessage = 'Authentication with Google Calendar failed.';
+                break;
+            case 'no_code':
+                errorMessage = 'No authorization code received from Google.';
+                break;
+            case 'token_failed':
+                errorMessage = 'Failed to obtain access token from Google.';
+                break;
+            case 'server_error':
+                errorMessage = 'A server error occurred during Google Calendar authentication.';
+                break;
+        }
+        
+        alert(errorMessage);
+        
+        // Clean URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+    }
+    
+    // Continue with normal callback handling if there's a code and pendingGoogleSchedule
     if (urlParams.has('code') && localStorage.getItem('pendingGoogleSchedule')) {
         handleGoogleCallback();
     }
-});
+}
 
 // Function to display calendar links
 function displayCalendarLinks(links) {

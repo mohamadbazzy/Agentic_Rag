@@ -469,4 +469,77 @@ def generate_google_calendar_link(schedule_data):
                 "url": calendar_url
             })
     
-    return links 
+    return links
+
+def generate_all_in_one_calendar_link(schedule_data):
+    """
+    Generate a single Google Calendar link that adds all courses at once
+    
+    Args:
+        schedule_data: Dictionary with schedule information
+        
+    Returns:
+        str: Single Google Calendar link that adds all courses
+    """
+    if not schedule_data or not schedule_data.get('schedule'):
+        return None
+    
+    # Instead of trying to add multiple events at once (which has limitations),
+    # we'll create a single special event that opens at the beginning of the semester
+    # with all course details in the description
+    
+    # Create a consolidated description of all courses
+    description = "AUB COURSE SCHEDULE\n\n"
+    
+    for course in schedule_data['schedule']:
+        course_code = course['course_code']
+        course_title = course.get('title', 'Class')
+        section = course.get('section', 'N/A')
+        instructor = course.get('instructor', 'TBA')
+        
+        description += f"📚 {course_code} - {course_title}\n"
+        description += f"Section: {section}\n"
+        description += f"Instructor: {instructor}\n"
+        
+        for meeting in course.get('meetings', []):
+            days = meeting.get('days', [])
+            if days:
+                days_str = ", ".join(days)
+                start_time = meeting.get('start_time', 'TBA')
+                end_time = meeting.get('end_time', 'TBA')
+                location = meeting.get('location', 'AUB Campus')
+                
+                description += f"Days: {days_str}\n"
+                description += f"Time: {start_time} - {end_time}\n"
+                description += f"Location: {location}\n"
+            
+        description += "\n"
+    
+    # Add note at the end
+    description += "\nNote: This is a summary event. Individual class events need to be created separately."
+    
+    # Get the earliest course date (today or next Monday)
+    today = datetime.now()
+    next_monday = today + timedelta(days=(7 - today.weekday()) % 7)
+    
+    # Format for 9 AM - 10 AM on the next Monday
+    start_datetime = next_monday.replace(hour=9, minute=0, second=0, microsecond=0)
+    end_datetime = next_monday.replace(hour=10, minute=0, second=0, microsecond=0)
+    
+    # Format for Google Calendar
+    start_formatted = start_datetime.strftime("%Y%m%dT%H%M%S")
+    end_formatted = end_datetime.strftime("%Y%m%dT%H%M%S")
+    
+    # Create the event parameters
+    event_params = {
+        "action": "TEMPLATE",
+        "text": "AUB Class Schedule Overview",
+        "details": description,
+        "location": "American University of Beirut",
+        "dates": f"{start_formatted}/{end_formatted}",
+    }
+    
+    # Generate the single event URL
+    calendar_url = f"https://calendar.google.com/calendar/render?{urlencode(event_params)}"
+    
+    return calendar_url 

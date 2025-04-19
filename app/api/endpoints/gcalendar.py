@@ -9,7 +9,8 @@ from app.services.google_calendar_helper import (
     get_token_from_code, 
     add_events_to_calendar, 
     check_for_conflicts,
-    generate_google_calendar_link
+    generate_google_calendar_link,
+    generate_all_in_one_calendar_link
 )
 
 # Set up logging
@@ -47,36 +48,24 @@ async def google_callback(request: Request, code: Optional[str] = None, state: O
         if error:
             error_msg = f"Authentication error: {error}"
             logger.error(error_msg)
-            return JSONResponse(
-                status_code=HTTP_400_BAD_REQUEST,
-                content={"error": error_msg}
-            )
+            return RedirectResponse(url="/?error=auth_failed")
         
         # Check for authorization code
         if not code:
-            return JSONResponse(
-                status_code=HTTP_400_BAD_REQUEST,
-                content={"error": "No authorization code provided"}
-            )
+            logger.error("No authorization code provided")
+            return RedirectResponse(url="/?error=no_code")
         
         # Exchange code for tokens
         token_data = get_token_from_code(code)
         if not token_data:
-            return JSONResponse(
-                status_code=HTTP_401_UNAUTHORIZED,
-                content={"error": "Failed to obtain access token"}
-            )
+            logger.error("Failed to obtain access token")
+            return RedirectResponse(url="/?error=token_failed")
         
-        # Return token data to client
-        return {
-            "access_token": token_data.get("access_token"),
-            "refresh_token": token_data.get("refresh_token", ""),
-            "expires_in": token_data.get("expires_in", 3600),
-            "state": state
-        }
+        # Redirect back to the application
+        return RedirectResponse(url="/?auth=success")
     except Exception as e:
         logger.error(f"Error in google_callback: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return RedirectResponse(url="/?error=server_error")
 
 @router.post("/add-schedule")
 async def add_schedule_to_calendar(request: Request):
@@ -205,4 +194,102 @@ async def generate_calendar_links(request: Request):
             
     except Exception as e:
         logger.error(f"Error in generate_calendar_links: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/add-events")
+async def add_events_from_code(request: Request):
+    """
+    Exchange authorization code for token and add events to calendar
+    """
+    try:
+        # Get request body
+        data = await request.json()
+        
+        # Validate required fields
+        if not data.get("code"):
+            return JSONResponse(
+                status_code=HTTP_400_BAD_REQUEST,
+                content={"error": "Authorization code is required"}
+            )
+            
+        if not data.get("schedule"):
+            return JSONResponse(
+                status_code=HTTP_400_BAD_REQUEST,
+                content={"error": "Schedule data is required"}
+            )
+        
+        # Exchange code for tokens
+        token_data = get_token_from_code(data["code"])
+        if not token_data or not token_data.get("access_token"):
+            return JSONResponse(
+                status_code=HTTP_401_UNAUTHORIZED,
+                content={"error": "Failed to obtain access token"}
+            )
+        
+        # Extract access token
+        access_token = token_data["access_token"]
+        
+        # Format schedule data
+        schedule_data = {"schedule": data["schedule"]}
+        
+        # Add events to calendar
+        result = add_events_to_calendar(access_token, schedule_data)
+        
+        if result.get("error"):
+            return JSONResponse(
+                status_code=HTTP_400_BAD_REQUEST,
+                content={"error": result["error"]}
+            )
+        
+        # Count the number of events added
+        added_count = len(result.get("results", []))
+        
+        return JSONResponse(
+            content={
+                "status": "success",
+                "message": "Events successfully added to Google Calendar",
+                "added_count": added_count
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error in add_events_from_code: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"An error occurred: {str(e)}"}
+        )
+
+@router.post("/generate-all-link")
+async def generate_full_schedule_link(request: Request):
+    """
+    Generate a single Google Calendar link that adds all courses at once
+    """
+    try:
+        # Get request body
+        data = await request.json()
+        
+        # Validate schedule data
+        if not data.get("schedule_data"):
+            return JSONResponse(
+                status_code=HTTP_400_BAD_REQUEST,
+                content={"error": "Schedule data is required"}
+            )
+        
+        # Generate the combined link
+        link = generate_all_in_one_calendar_link(data["schedule_data"])
+        
+        if not link:
+            return JSONResponse(
+                status_code=HTTP_400_BAD_REQUEST,
+                content={"error": "Failed to generate calendar link"}
+            )
+        
+        return JSONResponse(
+            content={
+                "status": "success",
+                "link": link
+            }
+        )
+            
+    except Exception as e:
+        logger.error(f"Error in generate_full_schedule_link: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 
