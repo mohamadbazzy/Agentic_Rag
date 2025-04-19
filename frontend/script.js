@@ -351,15 +351,28 @@ function generateScheduleTemplate(scheduleData) {
     
     const googleBtn = document.createElement('button');
     googleBtn.className = 'calendar-btn google-btn';
-    googleBtn.style.backgroundColor = '#4285F4'; // Google blue
+    googleBtn.style.backgroundColor = '#8A0635'; // AUB maroon color
     googleBtn.style.color = 'white';
-    googleBtn.style.padding = '10px 15px';
     googleBtn.style.border = 'none';
     googleBtn.style.borderRadius = '4px';
-    googleBtn.style.cursor = 'pointer';
+    googleBtn.style.padding = '10px 20px';
     googleBtn.style.fontSize = '16px';
-    googleBtn.style.fontWeight = 'bold';
+    googleBtn.style.cursor = 'pointer';
+    googleBtn.style.fontWeight = '500';
+    googleBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+    googleBtn.style.transition = 'all 0.2s ease';
     googleBtn.innerHTML = '<i class="far fa-calendar-alt"></i> Add to Google Calendar';
+    
+    // Add hover effect
+    googleBtn.onmouseover = function() {
+        this.style.backgroundColor = '#6d052a'; // Darker maroon on hover
+        this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+    };
+    googleBtn.onmouseout = function() {
+        this.style.backgroundColor = '#8A0635';
+        this.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+    };
+    
     googleBtn.onclick = () => addToGoogleCalendar(scheduleData);
     
     calendarButtonTop.appendChild(googleBtn);
@@ -468,7 +481,7 @@ async function generateFullScheduleLink(scheduleData) {
                 <p>A complete overview of your schedule has been created in a new tab.</p>
                 <p>This summary event includes all your class details. Google Calendar shows one event at a time, so we've created a summary with all your schedule information.</p>
                 <p>If you want to add individual class sessions as separate events instead, use the "Get Calendar Links" option.</p>
-                <button id="close-info-btn" style="margin-top: 15px; padding: 8px 16px; background-color: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%;">Close</button>
+                <button id="close-info-btn" style="margin-top: 15px; padding: 8px 16px; background-color: #8A0635; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%;">Close</button>
             `;
             
             infoModal.appendChild(infoContent);
@@ -621,26 +634,36 @@ async function generateGoogleCalendarLinks(scheduleData) {
             modal.style.alignItems = 'center';
             modal.style.justifyContent = 'center';
             
-            // Create content container
+            // Create content container with AUB styling
             const content = document.createElement('div');
             content.style.backgroundColor = 'white';
             content.style.borderRadius = '8px';
             content.style.padding = '20px';
-            content.style.maxWidth = '600px';
+            content.style.maxWidth = '750px';
             content.style.width = '90%';
             content.style.maxHeight = '80vh';
             content.style.overflowY = 'auto';
+            content.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
             
-            // Add header
-            const header = document.createElement('h3');
-            header.textContent = 'Add to Google Calendar';
-            header.style.marginTop = '0';
-            content.appendChild(header);
+            // Add header with AUB styling
+            const header = document.createElement('div');
+            header.style.borderBottom = '2px solid #8A0635'; // AUB maroon color
+            header.style.paddingBottom = '10px';
+            header.style.marginBottom = '15px';
+            
+            const headerTitle = document.createElement('h3');
+            headerTitle.textContent = 'Add to Google Calendar';
+            headerTitle.style.color = '#8A0635'; // AUB maroon color
+            headerTitle.style.margin = '0 0 5px 0';
+            header.appendChild(headerTitle);
             
             // Add description
             const description = document.createElement('p');
             description.textContent = 'Click on each link below to add the course section to your Google Calendar:';
-            content.appendChild(description);
+            description.style.margin = '10px 0';
+            header.appendChild(description);
+            
+            content.appendChild(header);
             
             // Create a table for better presentation
             const table = document.createElement('table');
@@ -648,16 +671,20 @@ async function generateGoogleCalendarLinks(scheduleData) {
             table.style.width = '100%';
             table.style.borderCollapse = 'collapse';
             table.style.margin = '15px 0';
+            table.style.borderRadius = '4px';
+            table.style.overflow = 'hidden';
             
             // Add table header
             const tableHead = document.createElement('thead');
+            tableHead.style.backgroundColor = '#8A0635'; // AUB maroon color
             const headerRow = document.createElement('tr');
             ['Course', 'Section', 'Days', 'Time', 'Add to Calendar'].forEach(title => {
                 const th = document.createElement('th');
                 th.textContent = title;
                 th.style.textAlign = 'left';
-                th.style.padding = '8px';
-                th.style.borderBottom = '1px solid #ddd';
+                th.style.padding = '12px 15px';
+                th.style.color = 'white';
+                th.style.fontWeight = '500';
                 headerRow.appendChild(th);
             });
             tableHead.appendChild(headerRow);
@@ -665,40 +692,44 @@ async function generateGoogleCalendarLinks(scheduleData) {
             
             // Add table body
             const tableBody = document.createElement('tbody');
+            let rowCounter = 0;
             result.links.forEach(link => {
                 const row = document.createElement('tr');
+                // Alternate row colors
+                row.style.backgroundColor = rowCounter % 2 === 0 ? '#f9f9f9' : 'white';
+                rowCounter++;
                 
                 // Course cell
                 const courseCell = document.createElement('td');
                 courseCell.textContent = link.course;
-                courseCell.style.padding = '8px';
+                courseCell.style.padding = '10px 15px';
                 courseCell.style.borderBottom = '1px solid #ddd';
                 row.appendChild(courseCell);
                 
                 // Section cell
                 const sectionCell = document.createElement('td');
                 sectionCell.textContent = link.section || 'N/A';
-                sectionCell.style.padding = '8px';
+                sectionCell.style.padding = '10px 15px';
                 sectionCell.style.borderBottom = '1px solid #ddd';
                 row.appendChild(sectionCell);
                 
                 // Days cell
                 const daysCell = document.createElement('td');
                 daysCell.textContent = link.days;
-                daysCell.style.padding = '8px';
+                daysCell.style.padding = '10px 15px';
                 daysCell.style.borderBottom = '1px solid #ddd';
                 row.appendChild(daysCell);
                 
                 // Time cell
                 const timeCell = document.createElement('td');
                 timeCell.textContent = link.time;
-                timeCell.style.padding = '8px';
+                timeCell.style.padding = '10px 15px';
                 timeCell.style.borderBottom = '1px solid #ddd';
                 row.appendChild(timeCell);
                 
                 // Add link cell
                 const linkCell = document.createElement('td');
-                linkCell.style.padding = '8px';
+                linkCell.style.padding = '10px 15px';
                 linkCell.style.borderBottom = '1px solid #ddd';
                 
                 const addButton = document.createElement('a');
@@ -706,11 +737,22 @@ async function generateGoogleCalendarLinks(scheduleData) {
                 addButton.target = '_blank';
                 addButton.textContent = 'Add to Calendar';
                 addButton.style.display = 'inline-block';
-                addButton.style.padding = '5px 10px';
-                addButton.style.backgroundColor = '#4285F4';
+                addButton.style.padding = '6px 12px';
+                addButton.style.backgroundColor = '#8A0635'; // AUB maroon color
                 addButton.style.color = 'white';
                 addButton.style.textDecoration = 'none';
                 addButton.style.borderRadius = '4px';
+                addButton.style.fontSize = '14px';
+                addButton.style.transition = 'all 0.2s ease';
+                
+                // Add hover effect
+                addButton.onmouseover = function() {
+                    this.style.backgroundColor = '#6d052a'; // Darker maroon on hover
+                };
+                addButton.onmouseout = function() {
+                    this.style.backgroundColor = '#8A0635';
+                };
+                
                 linkCell.appendChild(addButton);
                 
                 row.appendChild(linkCell);
@@ -720,19 +762,35 @@ async function generateGoogleCalendarLinks(scheduleData) {
             table.appendChild(tableBody);
             content.appendChild(table);
             
-            // Add close button
+            // Add close button with AUB styling
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.textAlign = 'right';
+            buttonContainer.style.marginTop = '20px';
+            
             const closeBtn = document.createElement('button');
             closeBtn.textContent = 'Close';
-            closeBtn.style.marginTop = '20px';
             closeBtn.style.padding = '8px 16px';
-            closeBtn.style.backgroundColor = '#f1f1f1';
+            closeBtn.style.backgroundColor = '#8A0635'; // AUB maroon color
+            closeBtn.style.color = 'white';
             closeBtn.style.border = 'none';
             closeBtn.style.borderRadius = '4px';
             closeBtn.style.cursor = 'pointer';
+            closeBtn.style.fontSize = '14px';
+            closeBtn.style.transition = 'all 0.2s ease';
+            
+            // Add hover effect
+            closeBtn.onmouseover = function() {
+                this.style.backgroundColor = '#6d052a'; // Darker maroon on hover
+            };
+            closeBtn.onmouseout = function() {
+                this.style.backgroundColor = '#8A0635';
+            };
+            
             closeBtn.onclick = () => {
                 document.body.removeChild(modal);
             };
-            content.appendChild(closeBtn);
+            buttonContainer.appendChild(closeBtn);
+            content.appendChild(buttonContainer);
             
             modal.appendChild(content);
             document.body.appendChild(modal);
