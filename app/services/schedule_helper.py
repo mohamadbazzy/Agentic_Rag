@@ -79,6 +79,7 @@ def generate_google_calendar_link(schedule_data):
     """
     Generate a Google Calendar link for the schedule.
     Returns a list of URLs that open Google Calendar with pre-filled event details.
+    Each link represents a course section (not individual days).
     """
     if not schedule_data or not schedule_data.get('schedule'):
         return []
@@ -89,80 +90,110 @@ def generate_google_calendar_link(schedule_data):
     for course in schedule_data['schedule']:
         for meeting in course.get('meetings', []):
             days = meeting.get('days', [])
+            if not days:
+                continue
+                
             start_time = meeting.get('start_time', '')
             end_time = meeting.get('end_time', '')
             
-            # For each day of the week
+            # Parse time from string (e.g. "9:00 am") to hours and minutes
+            def parse_time(time_str):
+                time_str = time_str.lower().strip()
+                is_pm = 'pm' in time_str
+                time_str = time_str.replace('am', '').replace('pm', '').strip()
+                
+                hour, minute = 9, 0  # Default to 9:00 if parsing fails
+                if ':' in time_str:
+                    hour_str, minute_str = time_str.split(':')
+                    hour = int(hour_str)
+                    minute = int(minute_str)
+                else:
+                    try:
+                        hour = int(time_str)
+                    except:
+                        pass
+                
+                if is_pm and hour < 12:
+                    hour += 12
+                elif not is_pm and hour == 12:
+                    hour = 0
+                    
+                return hour, minute
+            
+            # Find the earliest day of the week for this course
+            day_mapping = {
+                "MONDAY": 0, "TUESDAY": 1, "WEDNESDAY": 2, 
+                "THURSDAY": 3, "FRIDAY": 4, "SATURDAY": 5, "SUNDAY": 6
+            }
+            day_indices = [day_mapping.get(day.upper(), 0) for day in days]
+            min_day_index = min(day_indices)
+            
+            # Calculate the next occurrence of the earliest day
+            today = datetime.now()
+            current_day = today.weekday()
+            days_ahead = (min_day_index - current_day) % 7
+            
+            if days_ahead == 0:  # If today is the earliest day, start next week
+                days_ahead = 7
+                
+            next_day = today + timedelta(days=days_ahead)
+            
+            # Parse start and end times
+            start_hour, start_minute = parse_time(start_time)
+            end_hour, end_minute = parse_time(end_time)
+            
+            # Create datetime objects for the event start and end
+            start_datetime = next_day.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
+            end_datetime = next_day.replace(hour=end_hour, minute=end_minute, second=0, microsecond=0)
+            
+            # Format for Google Calendar URL
+            start_str = start_datetime.strftime("%Y%m%dT%H%M%S")
+            end_str = end_datetime.strftime("%Y%m%dT%H%M%S")
+            
+            # Create a list of weekday codes for the recurrence rule
+            weekday_codes = []
             for day in days:
-                # Calculate the next occurrence of this day
-                today = datetime.now()
-                day_mapping = {
-                    "MONDAY": 0, "TUESDAY": 1, "WEDNESDAY": 2, 
-                    "THURSDAY": 3, "FRIDAY": 4, "SATURDAY": 5, "SUNDAY": 6
-                }
-                target_day = day_mapping.get(day.upper(), 0)
-                current_day = today.weekday()
-                days_ahead = (target_day - current_day) % 7
-                
-                if days_ahead == 0:  # If today is the target day, start next week
-                    days_ahead = 7
-                    
-                next_day = today + timedelta(days=days_ahead)
-                
-                # Parse time from string (e.g. "9:00 am") to hours and minutes
-                def parse_time(time_str):
-                    time_str = time_str.lower().strip()
-                    is_pm = 'pm' in time_str
-                    time_str = time_str.replace('am', '').replace('pm', '').strip()
-                    
-                    hour, minute = 9, 0  # Default to 9:00 if parsing fails
-                    if ':' in time_str:
-                        hour_str, minute_str = time_str.split(':')
-                        hour = int(hour_str)
-                        minute = int(minute_str)
-                    else:
-                        try:
-                            hour = int(time_str)
-                        except:
-                            pass
-                    
-                    if is_pm and hour < 12:
-                        hour += 12
-                    elif not is_pm and hour == 12:
-                        hour = 0
-                        
-                    return hour, minute
-                
-                # Parse start and end times
-                start_hour, start_minute = parse_time(start_time)
-                end_hour, end_minute = parse_time(end_time)
-                
-                # Create datetime objects for the event start and end
-                start_datetime = next_day.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
-                end_datetime = next_day.replace(hour=end_hour, minute=end_minute, second=0, microsecond=0)
-                
-                # Format for Google Calendar URL
-                start_str = start_datetime.strftime("%Y%m%dT%H%M%S")
-                end_str = end_datetime.strftime("%Y%m%dT%H%M%S")
-                
-                # Create event details
-                event_details = {
-                    "action": "TEMPLATE",
-                    "text": f"{course['course_code']} - {course.get('title', 'Class')}",
-                    "details": f"Course: {course['course_code']}\nSection: {course.get('section', '')}\nInstructor: {course.get('instructor', 'TBA')}",
-                    "location": meeting.get('location', 'AUB Campus'),
-                    "dates": f"{start_str}/{end_str}",
-                    "recur": "RRULE:FREQ=WEEKLY;COUNT=15"  # Repeat weekly for 15 weeks (typical semester length)
-                }
-                
-                # Generate URL
-                calendar_url = f"https://www.google.com/calendar/render?{urllib.parse.urlencode(event_details)}"
-                links.append({
-                    "day": day,
-                    "time": f"{start_time} - {end_time}",
-                    "course": course['course_code'],
-                    "url": calendar_url
-                })
+                if day.upper() == "MONDAY":
+                    weekday_codes.append("MO")
+                elif day.upper() == "TUESDAY":
+                    weekday_codes.append("TU")
+                elif day.upper() == "WEDNESDAY":
+                    weekday_codes.append("WE")
+                elif day.upper() == "THURSDAY":
+                    weekday_codes.append("TH")
+                elif day.upper() == "FRIDAY":
+                    weekday_codes.append("FR")
+                elif day.upper() == "SATURDAY":
+                    weekday_codes.append("SA")
+                elif day.upper() == "SUNDAY":
+                    weekday_codes.append("SU")
+            
+            # Create recurrence rule that includes all meeting days
+            recurrence_rule = f"RRULE:FREQ=WEEKLY;COUNT=15;BYDAY={','.join(weekday_codes)}"
+            
+            # Create event details
+            event_details = {
+                "action": "TEMPLATE",
+                "text": f"{course['course_code']} - {course.get('title', 'Class')}",
+                "details": f"Course: {course['course_code']}\nSection: {course.get('section', '')}\nInstructor: {course.get('instructor', 'TBA')}\nMeeting days: {', '.join(days)}",
+                "location": meeting.get('location', 'AUB Campus'),
+                "dates": f"{start_str}/{end_str}",
+                "recur": recurrence_rule
+            }
+            
+            # Generate URL
+            calendar_url = f"https://www.google.com/calendar/render?{urllib.parse.urlencode(event_details)}"
+            
+            # Create a descriptive label for all meeting days
+            days_display = ", ".join(days)
+            
+            links.append({
+                "days": days_display,
+                "time": f"{start_time} - {end_time}",
+                "course": course['course_code'],
+                "section": course.get('section', ''),
+                "url": calendar_url
+            })
     
     return links
 

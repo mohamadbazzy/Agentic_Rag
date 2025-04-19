@@ -468,7 +468,7 @@ function startGoogleAuth(scheduleData) {
     localStorage.setItem('pendingGoogleSchedule', JSON.stringify(scheduleData));
     
     // Request the auth URL from our backend
-    fetch('/api/gcalendar/auth-url', {
+    fetch('/api/gcalendar/auth', {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'
@@ -582,16 +582,6 @@ async function generateGoogleCalendarLinks(scheduleData) {
         const result = await response.json();
         
         if (result.status === 'success' && result.links && result.links.length > 0) {
-            // Group links by course for better organization
-            const courseLinks = {};
-            
-            result.links.forEach(link => {
-                if (!courseLinks[link.course]) {
-                    courseLinks[link.course] = [];
-                }
-                courseLinks[link.course].push(link);
-            });
-            
             // Create modal to display links
             const modal = document.createElement('div');
             modal.className = 'calendar-links-modal';
@@ -624,29 +614,86 @@ async function generateGoogleCalendarLinks(scheduleData) {
             
             // Add description
             const description = document.createElement('p');
-            description.textContent = 'Click on each link below to add individual class sessions to your Google Calendar:';
+            description.textContent = 'Click on each link below to add the course section to your Google Calendar:';
             content.appendChild(description);
             
-            // Add course links
-            Object.keys(courseLinks).forEach(course => {
-                const courseHeader = document.createElement('h4');
-                courseHeader.textContent = course;
-                content.appendChild(courseHeader);
-                
-                const linkList = document.createElement('ul');
-                
-                courseLinks[course].forEach(link => {
-                    const listItem = document.createElement('li');
-                    const linkElem = document.createElement('a');
-                    linkElem.href = link.url;
-                    linkElem.target = '_blank';
-                    linkElem.textContent = `${link.day} (${link.time})`;
-                    listItem.appendChild(linkElem);
-                    linkList.appendChild(listItem);
-                });
-                
-                content.appendChild(linkList);
+            // Create a table for better presentation
+            const table = document.createElement('table');
+            table.className = 'calendar-links-table';
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            table.style.margin = '15px 0';
+            
+            // Add table header
+            const tableHead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            ['Course', 'Section', 'Days', 'Time', 'Add to Calendar'].forEach(title => {
+                const th = document.createElement('th');
+                th.textContent = title;
+                th.style.textAlign = 'left';
+                th.style.padding = '8px';
+                th.style.borderBottom = '1px solid #ddd';
+                headerRow.appendChild(th);
             });
+            tableHead.appendChild(headerRow);
+            table.appendChild(tableHead);
+            
+            // Add table body
+            const tableBody = document.createElement('tbody');
+            result.links.forEach(link => {
+                const row = document.createElement('tr');
+                
+                // Course cell
+                const courseCell = document.createElement('td');
+                courseCell.textContent = link.course;
+                courseCell.style.padding = '8px';
+                courseCell.style.borderBottom = '1px solid #ddd';
+                row.appendChild(courseCell);
+                
+                // Section cell
+                const sectionCell = document.createElement('td');
+                sectionCell.textContent = link.section || 'N/A';
+                sectionCell.style.padding = '8px';
+                sectionCell.style.borderBottom = '1px solid #ddd';
+                row.appendChild(sectionCell);
+                
+                // Days cell
+                const daysCell = document.createElement('td');
+                daysCell.textContent = link.days;
+                daysCell.style.padding = '8px';
+                daysCell.style.borderBottom = '1px solid #ddd';
+                row.appendChild(daysCell);
+                
+                // Time cell
+                const timeCell = document.createElement('td');
+                timeCell.textContent = link.time;
+                timeCell.style.padding = '8px';
+                timeCell.style.borderBottom = '1px solid #ddd';
+                row.appendChild(timeCell);
+                
+                // Add link cell
+                const linkCell = document.createElement('td');
+                linkCell.style.padding = '8px';
+                linkCell.style.borderBottom = '1px solid #ddd';
+                
+                const addButton = document.createElement('a');
+                addButton.href = link.url;
+                addButton.target = '_blank';
+                addButton.textContent = 'Add to Calendar';
+                addButton.style.display = 'inline-block';
+                addButton.style.padding = '5px 10px';
+                addButton.style.backgroundColor = '#4285F4';
+                addButton.style.color = 'white';
+                addButton.style.textDecoration = 'none';
+                addButton.style.borderRadius = '4px';
+                linkCell.appendChild(addButton);
+                
+                row.appendChild(linkCell);
+                tableBody.appendChild(row);
+            });
+            
+            table.appendChild(tableBody);
+            content.appendChild(table);
             
             // Add close button
             const closeBtn = document.createElement('button');
@@ -1588,3 +1635,66 @@ document.addEventListener('DOMContentLoaded', function() {
         handleGoogleCallback();
     }
 });
+
+// Function to display calendar links
+function displayCalendarLinks(links) {
+    const container = document.createElement('div');
+    container.className = 'calendar-links-container';
+    
+    // Create a table to display the links
+    const table = document.createElement('table');
+    table.className = 'table table-striped';
+    
+    // Create table header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Course', 'Section', 'Days', 'Time', 'Add to Calendar'].forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    
+    // Create table body
+    const tbody = document.createElement('tbody');
+    links.forEach(link => {
+        const row = document.createElement('tr');
+        
+        // Course column
+        const courseCell = document.createElement('td');
+        courseCell.textContent = link.course;
+        row.appendChild(courseCell);
+        
+        // Section column
+        const sectionCell = document.createElement('td');
+        sectionCell.textContent = link.section || 'N/A';
+        row.appendChild(sectionCell);
+        
+        // Days column
+        const daysCell = document.createElement('td');
+        daysCell.textContent = link.days;
+        row.appendChild(daysCell);
+        
+        // Time column
+        const timeCell = document.createElement('td');
+        timeCell.textContent = link.time;
+        row.appendChild(timeCell);
+        
+        // Add to Calendar button column
+        const buttonCell = document.createElement('td');
+        const addButton = document.createElement('a');
+        addButton.href = link.url;
+        addButton.target = '_blank';
+        addButton.className = 'btn btn-sm btn-primary';
+        addButton.innerHTML = '<i class="far fa-calendar-plus"></i> Add';
+        buttonCell.appendChild(addButton);
+        row.appendChild(buttonCell);
+        
+        tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    container.appendChild(table);
+    
+    return container;
+}
