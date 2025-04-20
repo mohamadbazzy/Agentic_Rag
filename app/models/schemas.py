@@ -10,6 +10,7 @@ class State(TypedDict):
     department: Optional[str]
     track: Optional[str]
     query_type: Optional[str]
+    documents: Optional[List[Dict[str, Any]]]  # Add documents field for passing course info
 
 # New models for API request/response
 class QueryRequest(BaseModel):
