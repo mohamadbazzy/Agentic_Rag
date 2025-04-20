@@ -256,7 +256,8 @@ def build_graph():
     # Connect invalid_handler to END
     graph.add_edge("invalid_handler", END)
     
-    # Add conditional edges for ECE routes
+    # Add conditional edges for ECE routes without using transformers
+    # Simpler approach compatible with the current LangGraph version
     graph.add_conditional_edges(
         "ece",
         route_to_ece_track,
