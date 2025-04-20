@@ -3,6 +3,7 @@ from app.core.config import OPENAI_API_KEY
 from app.models.schemas import State
 from app.db.vector_store import get_agent_vectorstore
 import logging
+import re
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -20,46 +21,83 @@ def ece_track(state: State):
     """Handle queries about the Electrical and Computer Engineering track"""
     user_message = state["messages"][-1].content
     query_type = state.get("query_type", "General")
+    
+    # IMPORTANT CHANGE: Check if documents were passed from the department handler
+    department_docs = state.get("documents", [])
+    logger.info(f"Received {len(department_docs)} documents from department handler")
+    
+    # Direct search for course codes if we have no documents but the user is asking about a course
+    if not department_docs:
+        # Check if the user message contains a course code
+        course_match = re.search(r'(EECE)\s*(\d{3})', user_message, re.IGNORECASE)
+        if course_match:
+            course_code = f"{course_match.group(1)} {course_match.group(2)}"
+            logger.info(f"No documents passed but detected course code: {course_code}. Doing direct search.")
+            try:
+                # Search directly for the course
+                course_docs = ece_track_vectorstore.similarity_search(
+                    "course information", 
+                    k=5,
+                    namespace="ece_namespace",
+                    filter={"course_code": {"$eq": course_code}}
+                )
+                
+                if course_docs:
+                    logger.info(f"Direct course search found {len(course_docs)} documents")
+                    department_docs = [
+                        {"content": doc.page_content, "source": doc.metadata.get("source", "unknown")}
+                        for doc in course_docs
+                    ]
+            except Exception as e:
+                logger.error(f"Error in direct course search: {str(e)}")
+    
+    # Use the documents from department if available, otherwise do our own search
+    if department_docs:
+        logger.info("Using documents from department handler or direct course search")
+        context = department_docs
+    else:
+        # Only do our own search if no documents were passed
+        search_query = f"General Electrical Engineering: {query_type} - {user_message}"
+        try:
+            logger.info(f"No documents from department, searching ece_namespace with query: {search_query}")
 
-    # Always retrieve from ECE track's namespace
-    search_query = f"General Electrical Engineering: {query_type} - {user_message}"
+            # Retrieve relevant documents
+            retriever = ece_track_vectorstore.as_retriever(
+                search_kwargs={
+                    "namespace": "ece_namespace",
+                    "k": 10
+                }
+            )
+            ece_docs = retriever.get_relevant_documents(search_query)
 
-    try:
-        logger.info(f"Searching ece_namespace with query: {search_query}")
+            logger.info(f"Found {len(ece_docs)} documents in ece_namespace for general ECE track")
 
-        # Retrieve relevant documents
-        retriever = ece_track_vectorstore.as_retriever(
-            search_kwargs={
-                "namespace": "ece_namespace",
-                "k": 10
-            }
-        )
-        ece_docs = retriever.get_relevant_documents(search_query)
+            if ece_docs:
+                context = [
+                    {"content": doc.page_content, "source": doc.metadata.get("source", "unknown")}
+                    for doc in ece_docs
+                ]
+            else:
+                logger.warning("No documents found in ece_namespace for general ECE track, using fallback content")
+                context = [{
+                    "content": """
+                    The general Electrical and Computer Engineering track at AUB covers a broad range of topics including 
+                    power systems, control systems, electronics, signals & systems, and general electrical engineering principles. 
+                    This track provides a well-rounded education suitable for diverse career paths in electrical engineering.
+                    """,
+                    "source": "fallback_info"
+                }]
 
-        logger.info(f"Found {len(ece_docs)} documents in ece_namespace for general ECE track")
-
-        if ece_docs:
-            context = [
-                {"content": doc.page_content, "source": doc.metadata.get("source", "unknown")}
-                for doc in ece_docs
-            ]
-        else:
-            logger.warning("No documents found in ece_namespace for general ECE track, using fallback content")
+        except Exception as e:
+            logger.error(f"Error retrieving documents from ece_namespace for general ECE track: {str(e)}")
             context = [{
-                "content": """
-                The general Electrical and Computer Engineering track at AUB covers a broad range of topics including 
-                power systems, control systems, electronics, signals & systems, and general electrical engineering principles. 
-                This track provides a well-rounded education suitable for diverse career paths in electrical engineering.
-                """,
-                "source": "fallback_info"
+                "content": "Basic information about the general ECE track in the ECE department at AUB's MSFEA faculty.",
+                "source": "error_fallback"
             }]
 
-    except Exception as e:
-        logger.error(f"Error retrieving documents from ece_namespace for general ECE track: {str(e)}")
-        context = [{
-            "content": "Basic information about the general ECE track in the ECE department at AUB's MSFEA faculty.",
-            "source": "error_fallback"
-        }]
+    # Log the first document content to verify what we're using
+    if context:
+        logger.info(f"Using document with content preview: {context[0]['content'][:100]}...")
 
     context_str = "\n".join([item["content"] for item in context])
 

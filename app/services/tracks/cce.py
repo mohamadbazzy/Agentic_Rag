@@ -3,6 +3,7 @@ from app.core.config import OPENAI_API_KEY
 from app.models.schemas import State
 from app.db.vector_store import get_agent_vectorstore
 import logging
+import re
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -21,44 +22,82 @@ def cce_track(state: State):
     user_message = state["messages"][-1].content
     query_type = state.get("query_type", "General")
     
-    # Always retrieve from CCE's namespace, regardless of passed context
-    search_query = f"Computer and Communications Engineering: {query_type} - {user_message}"
+    # Check if documents were passed from the department handler
+    department_docs = state.get("documents", [])
+    logger.info(f"Received {len(department_docs)} documents from department handler")
     
-    try:
-        # Debug output to track the search
-        logger.info(f"Searching cce_namespace with query: {search_query}")
+    # Direct search for course codes if we have no documents but the user is asking about a course
+    if not department_docs:
+        # Check if the user message contains a course code
+        course_match = re.search(r'(EECE)\s*(\d{3})', user_message, re.IGNORECASE)
+        if course_match:
+            course_code = f"{course_match.group(1)} {course_match.group(2)}"
+            logger.info(f"No documents passed but detected course code: {course_code}. Doing direct search.")
+            try:
+                # Search directly for the course
+                course_docs = cce_vectorstore.similarity_search(
+                    "course information", 
+                    k=5,
+                    namespace="ece_namespace",
+                    filter={"course_code": {"$eq": course_code}}
+                )
+                
+                if course_docs:
+                    logger.info(f"Direct course search found {len(course_docs)} documents")
+                    department_docs = [
+                        {"content": doc.page_content, "source": doc.metadata.get("source", "unknown")}
+                        for doc in course_docs
+                    ]
+            except Exception as e:
+                logger.error(f"Error in direct course search: {str(e)}")
+    
+    # Use the documents from department if available, otherwise do our own search
+    if department_docs:
+        logger.info("Using documents from department handler or direct course search")
+        context = department_docs
+    else:
+        # Only do our own search if no documents were passed
+        search_query = f"Computer and Communications Engineering: {query_type} - {user_message}"
         
-        # Ensure we're using the correct vectorstore and namespace
-        cce_docs = cce_vectorstore.similarity_search(
-            search_query, 
-            k=3,
-            namespace="cce_namespace",  # Explicitly specify namespace
-            filter={"track": "cce"}  # Add a filter for CCE track
-        )
-        
-        logger.info(f"Found {len(cce_docs)} documents in cce_namespace")
-        
-        if cce_docs:
-            context = [{"content": doc.page_content, "source": doc.metadata.get("source", "unknown")} 
-                    for doc in cce_docs]
-        else:
-            # Fallback to hardcoded information if no docs found
-            logger.warning("No documents found in cce_namespace, using fallback content")
+        try:
+            # Debug output to track the search
+            logger.info(f"No documents from department, searching cce_namespace with query: {search_query}")
+            
+            # Ensure we're using the correct vectorstore and namespace
+            cce_docs = cce_vectorstore.similarity_search(
+                search_query, 
+                k=3,
+                namespace="cce_namespace",  # Explicitly specify namespace
+                filter={"track": "cce"}  # Add a filter for CCE track
+            )
+            
+            logger.info(f"Found {len(cce_docs)} documents in cce_namespace")
+            
+            if cce_docs:
+                context = [{"content": doc.page_content, "source": doc.metadata.get("source", "unknown")} 
+                        for doc in cce_docs]
+            else:
+                # Fallback to hardcoded information if no docs found
+                logger.warning("No documents found in cce_namespace, using fallback content")
+                context = [{
+                    "content": """
+                    The Computer and Communications Engineering (CCE) track at AUB focuses on telecommunications, 
+                    networking, wireless systems, information theory, security, and signal processing for communications. 
+                    CCE graduates typically work in telecommunications, networking, cybersecurity, and wireless technologies.
+                    """,
+                    "source": "fallback_info"
+                }]
+        except Exception as e:
+            logger.error(f"Error retrieving documents from cce_namespace: {str(e)}")
+            # Use fallback content in case of error
             context = [{
-                "content": """
-                The Computer and Communications Engineering (CCE) track at AUB focuses on telecommunications, 
-                networking, wireless systems, information theory, security, and signal processing for communications. 
-                CCE graduates typically work in telecommunications, networking, cybersecurity, and wireless technologies.
-                """,
-                "source": "fallback_info"
+                "content": "Basic information about the CCE track in the ECE department at AUB's MSFEA faculty.",
+                "source": "error_fallback"
             }]
-    except Exception as e:
-        logger.error(f"Error retrieving documents from cce_namespace: {str(e)}")
-        # Use fallback content in case of error
-        context = [{
-            "content": "Basic information about the CCE track in the ECE department at AUB's MSFEA faculty.",
-            "source": "error_fallback"
-        }]
+    
+    # Log the first document content to verify what we're using
+    if context:
+        logger.info(f"Using document with content preview: {context[0]['content'][:100]}...")
     
     context_str = "\n".join([item["content"] for item in context])
     

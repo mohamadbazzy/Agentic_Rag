@@ -25,14 +25,29 @@ def ece_department(state: State):
 
         if course_code:
             logger.info(f"Detected course code: {course_code}")
-            retriever = ece_vectorstore.as_retriever(
-                search_kwargs={
-                    "filter": {"course_code": {"$eq": course_code}},
-                    "namespace": "ece_namespace",
-                    "k": 3
-                }
+            
+            # Use exact metadata filtering which works according to our tests
+            logger.info(f"Searching with exact course code filter: {course_code}")
+            course_docs = ece_vectorstore.similarity_search(
+                "course information",  # Generic query that will rely on filtering
+                k=5,
+                namespace="ece_namespace",
+                filter={"course_code": {"$eq": course_code}}
             )
-            ece_docs = retriever.get_relevant_documents(search_query)
+            
+            logger.info(f"Found {len(course_docs)} documents with course filter")
+            
+            if course_docs:
+                ece_docs = course_docs
+            else:
+                # If no exact match, fall back to direct semantic search
+                logger.info(f"No exact matches found, trying with semantic search for course code")
+                ece_docs = ece_vectorstore.similarity_search(
+                    course_code,
+                    k=5,
+                    namespace="ece_namespace"
+                )
+                logger.info(f"Found {len(ece_docs)} documents with semantic search")
         else:
             ece_docs = ece_vectorstore.similarity_search(
                 search_query,
@@ -41,6 +56,12 @@ def ece_department(state: State):
             )
 
         logger.info(f"Found {len(ece_docs)} documents in ece_namespace")
+        
+        # Log document metadata to see what's available
+        if ece_docs:
+            for i, doc in enumerate(ece_docs[:2]):  # Log first 2 docs
+                logger.info(f"Doc {i+1} metadata: {doc.metadata}")
+                logger.info(f"Doc {i+1} content preview: {doc.page_content[:100]}...")
 
         if ece_docs:
             context = [
@@ -95,4 +116,20 @@ def ece_department(state: State):
     if track not in {"CSE", "CCE", "ECE"}:
         track = "ECE"
 
-    return {"track": track, "documents": context}
+    # Direct modification of state instead of just returning values
+    # This is more compatible with different LangGraph versions
+    if hasattr(state, "update"):
+        # If state is a dict-like object with update method
+        state.update({
+            "track": track,
+            "documents": context
+        })
+        logger.info(f"Updated state with {len(context)} documents for track {track}")
+        return state
+    else:
+        # Fall back to returning values if state can't be updated directly
+        logger.info(f"Returning {len(context)} documents for track {track}")
+        return {
+            "track": track, 
+            "documents": context
+        }
