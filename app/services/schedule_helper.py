@@ -255,7 +255,7 @@ def schedule_helper(state: State):
 
     Use the following course information to help answer their question:
     {context_str}
-    
+    IMPORTANT: TAKE CARE FOR CONFLICTS DONT GIVE ME 2 COURSES AT THE SAME TIME IF YOU CANT RUN AWAY FROM CONFLICTS PLEASE TELL THE USER TO CHOOSE DIFFERENT COURSES.
     If you don't have specific information about mentioned courses, explain that you need the correct course codes to provide accurate scheduling information.
     
     Respond in a professional, helpful manner appropriate for a university scheduling assistant.
