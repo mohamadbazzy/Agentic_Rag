@@ -47,19 +47,19 @@ Academic Advisor uses a microservices architecture with multiple specialized age
 │   Frontend  │◄───►│   Backend   │◄───►│ Vector DB   │
 └─────────────┘     └──────┬──────┘     └─────────────┘
                            │
-       ┌──────────────────┼──────────────────┐
-       │                  │                  │
-┌──────▼─────┐    ┌───────▼──────┐    ┌──────▼─────┐
-│ Supervisor │    │  Department  │    │   Scraper  │
-│   Agent    │    │    Agents    │    │   Service  │
-└──────┬─────┘    └───────┬──────┘    └──────┬─────┘
-       │                  │                  │
-       └──────────────────┼──────────────────┘
-                          │
-                    ┌─────▼─────┐
-                    │  WhatsApp │
-                    │  Service  │
-                    └───────────┘
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+ ┌──────▼─────┐    ┌───────▼──────┐    ┌──────▼─────┐
+ │ Supervisor │    │  Department  │    │   Scraper  │
+ │   Agent    │    │    Agents    │    │   Service  │
+ └──────┬─────┘    └───────┬──────┘    └──────┬─────┘
+        │                  │                  │
+        └──────────────────┼──────────────────┘
+                           │
+                     ┌─────▼─────┐
+                     │  WhatsApp │
+                     │  Service  │
+                     └───────────┘
 ```
 
 ## 📦 Installation
@@ -81,6 +81,27 @@ Academic Advisor uses a microservices architecture with multiple specialized age
    ```bash
    cp .env.example .env
    # Edit .env with your OpenAI API key and other configuration
+   ```
+
+   Required environment variables:
+   ```
+   # OpenAI API Configuration
+   OPENAI_API_KEY=your_openai_api_key
+   
+   # Database Configuration
+   PINECONE_API_KEY=your_pinecone_api_key
+   PINECONE_ENVIRONMENT=your_pinecone_environment
+   PINECONE_INDEX_NAME=your_pinecone_index_name
+   
+   # WhatsApp Integration
+   TWILIO_ACCOUNT_SID=your_twilio_account_sid
+   TWILIO_AUTH_TOKEN=your_twilio_auth_token
+   TWILIO_PHONE_NUMBER=your_twilio_phone_number
+   
+   # Application Settings
+   LOG_LEVEL=INFO
+   DEBUG=False
+   PORT=8000
    ```
 
 3. Build and start all services
@@ -187,6 +208,140 @@ docker-compose up -d
 ### Kubernetes Deployment
 For production environments, Kubernetes deployment is supported using the configurations in the `k8s` directory.
 
+#### AKS + ArgoCD Deployment Guide
+This guide covers the process for deploying applications to our AKS cluster using ArgoCD for continuous deployment. It assumes the initial infrastructure is already set up.
+
+##### Prerequisites
+- Azure CLI installed and configured
+- kubectl installed and configured
+- Access to the GitHub repository
+- ArgoCD CLI installed (optional, for advanced operations)
+
+##### Connecting to the Environment
+```bash
+# Connect to the AKS cluster
+az aks get-credentials --resource-group aub-advisor-rg --name aub-advisor-aks
+
+# Verify connection
+kubectl get nodes
+```
+
+##### Deployment Process
+1. **Creating a New Service Deployment**
+
+   To add a new service to the CI/CD pipeline:
+   - Add Kubernetes manifests in the appropriate location:
+     - Place base configuration in `k8s/base/[service-name]/`
+     - Add environment-specific configurations in `k8s/overlays/[env]/`
+   - Create a GitHub Actions workflow for the service:
+     - Create `.github/workflows/[service-name]-ci.yml`
+     - Configure build and push to ACR
+     - Set up the image tag update process
+
+2. **Updating Existing Service**
+
+   To update an existing service:
+   - Make code changes in the service repository
+   - Push changes to the main branch to trigger CI pipeline
+   - GitHub Actions will:
+     - Build a new Docker image
+     - Push to Azure Container Registry
+     - Update the Kubernetes manifest with the new image tag
+     - Commit the changes back to the repository
+   - ArgoCD will automatically detect the changes and sync the application
+
+3. **Monitoring Deployments**
+
+   Via ArgoCD UI:
+   ```bash
+   # Port-forward to access ArgoCD UI
+   kubectl port-forward svc/argocd-server -n argocd 8080:443
+   ```
+   Then access the UI at https://localhost:8080
+
+   Via kubectl:
+   ```bash
+   # Check deployment status
+   kubectl get deployments -n aub-advisor
+
+   # Check pods
+   kubectl get pods -n aub-advisor
+
+   # View logs
+   kubectl logs -f deployment/[service-name] -n aub-advisor
+   ```
+
+4. **Blue/Green Deployment Process**
+
+   The deployment uses a blue/green strategy for zero-downtime updates:
+   - The CI process updates the inactive deployment (if blue is active, green is updated)
+   - ArgoCD deploys the changes to the inactive environment
+   - To switch traffic:
+   ```bash
+   # Switch from blue to green
+   kubectl patch service main-service -n aub-advisor -p '{"spec":{"selector":{"deployment":"green"}}}'
+
+   # Switch from green to blue
+   kubectl patch service main-service -n aub-advisor -p '{"spec":{"selector":{"deployment":"blue"}}}'
+   ```
+
+5. **Rollback Procedure**
+
+   If a deployment needs to be rolled back:
+   ```bash
+   # Option 1: Revert to previous Git commit
+   git revert [commit-hash]
+   git push
+
+   # Option 2: Manual rollback via ArgoCD
+   argocd app rollback aub-advisor [version]
+
+   # Option 3: Switch back to the previous environment in blue/green
+   kubectl patch service main-service -n aub-advisor -p '{"spec":{"selector":{"deployment":"blue"}}}'
+   ```
+
+##### Troubleshooting
+Common Issues:
+
+- **Image Pull Errors**:
+  ```bash
+  kubectl describe pod [pod-name] -n aub-advisor
+  ```
+  Verify ACR credentials and AKS-ACR integration.
+
+- **ArgoCD Sync Issues**:
+  ```bash
+  kubectl logs -f deployment/argocd-application-controller -n argocd
+  ```
+  Check for Git repository access issues or manifest errors.
+
+- **Service Unavailable**:
+  ```bash
+  kubectl get endpoints -n aub-advisor
+  ```
+  Verify service selectors match pod labels.
+
+##### Azure Container Registry Management
+```bash
+# Log in to ACR
+az acr login --name aubadvisoracr
+
+# List images
+az acr repository list --name aubadvisoracr
+
+# List tags for a specific image
+az acr repository show-tags --name aubadvisoracr --repository [image-name]
+```
+
+##### Updating ArgoCD Application
+If you need to update the ArgoCD application configuration:
+```bash
+# Edit the ArgoCD application
+kubectl edit application aub-advisor -n argocd
+
+# Or apply an updated manifest
+kubectl apply -f argocd-app.yaml
+```
 
 #### Prerequisites
 - Azure account with active subscription
@@ -194,7 +349,6 @@ For production environments, Kubernetes deployment is supported using the config
 - kubectl installed
 - Git repository containing the application code
 - GitHub account (for CI/CD)
-
 
 ## 📜 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
